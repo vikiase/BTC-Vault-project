@@ -3,7 +3,7 @@
 ## Introduction
 hodl_vault? is a web application designed for Dollar-Cost Averaging (DCA) and other investment strategies, specifically for Bitcoin (BTC). The inspiration for this project came from Lubos Kovarik's stosuj.cz platform, which I greatly admire. I would like to credit him for his work, and as such, this project is non-commercial.
 
-I did not use help of AI. This project is primarily built to showcase my technical skills in **Python**, **APIs**, **SQL databases**, and **frontend development**. The goal is to provide a practical tool for users who want to automate their BTC investment strategies while maintaining control over their funds.
+I did not use help of AI. This project is primarily built to showcase my technical skills in **Python**, **APIs**, **SQL databases**, **Git** and **frontend development**. The goal is to provide a practical tool for users who want to automate their BTC investment strategies while maintaining control over their funds.
 
 ## How It Works
 It interacts with the **Coinmate API** to facilitate automated BTC purchases. Users need an account on the Coinmate exchange, as the platform will execute orders directly within their Coinmate account. The user also needs to have sufficient funds on the exchange for the strategy to work.
