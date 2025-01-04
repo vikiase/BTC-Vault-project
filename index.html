@@ -29,7 +29,7 @@
     <h2>Create Strategy</h2>
     <form id="createStrategyForm">
         <label for="user_id">User ID:</label><br>
-
+        <input type="number" id="user_id" name="user_id" required><br>
         <label for="amount">Amount:</label><br>
         <input type="number" id="amount" name="amount" required><br>
         <label for="frequency">Frequency:</label><br>
@@ -43,8 +43,8 @@
     <!-- Add Transactions Form -->
     <h2>Add DCA Transactions</h2>
     <form id="addTransactionsForm">
-        <label for="user_id">User ID:</label><br>
-        <input type="number" id="user_id" name="user_id" required><br>
+        <label for="transaction_user_id">User ID:</label><br>
+        <input type="number" id="transaction_user_id" name="user_id" required><br> <!-- Změněno na transaction_user_id -->
         <label for="strategy_id">Strategy ID:</label><br>
         <input type="number" id="strategy_id" name="strategy_id" required><br>
         <button type="submit">Add Transactions</button>
@@ -109,14 +109,12 @@
             .catch(error => console.error('Error:', error));
         });
 
-        // Add User Form
+        // Add DCA Transactions Form
         document.getElementById('addTransactionsForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const userId = document.getElementById('user_id').value;
-            const strategyId = document.getElementById('strategy_id').value;
             const data = {
-                user_id: userId,
-                strategy_id: strategyId
+                user_id: document.getElementById('transaction_user_id').value,
+                strategy_id: document.getElementById('strategy_id').value
             };
             fetch('/add_transactions', {
                 method: 'POST',
