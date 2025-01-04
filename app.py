@@ -48,6 +48,7 @@ class Transaction(db.Model):
     strategy_id = db.Column(db.Integer, db.ForeignKey('strategies.strategy_id'))
     amount = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(10), nullable=False, default='pending')
     date = db.Column(db.DateTime, nullable=False)
 
     strategy = db.relationship('Strategy', back_populates='transactions')
@@ -97,11 +98,14 @@ def add_new_user():
     db.session.commit()
     return jsonify({"message": "User added successfully", "user_id": new_user.user_id}), 201
 
+
 @app.route('/add_transactions', methods=['POST', 'GET'])
 def add_new__dca_transactions():
     user_id = request.json['user_id']
     strategy_id = request.json['strategy_id']
+    print(f"User id: {user_id}, Strategy id: {strategy_id}")
     user_data = User.query.get(user_id)
+    print(f"User data: {user_data}")
     public_key = user_data.public_key
     private_key = user_data.private_key
     api_user_id = user_data.api_user_id
@@ -111,7 +115,7 @@ def add_new__dca_transactions():
         transactions = Transaction.query.join(Strategy).filter(Strategy.user_id == user_id,
                                                                Strategy.strategy_id == strategy_id).order_by(Transaction.date.desc()).limit(35).all()
         transactions_list = [
-            {"transaction_id": transaction.transaction_id, "amount": transaction.amount, "price": transaction.price,
+            {"transaction_id": transaction.transaction_id, "amount": transaction.amount, "price": transaction.price, "status": transaction.status,
              'date': transaction.date} for transaction in transactions]
         return transactions_list
 
@@ -119,18 +123,19 @@ def add_new__dca_transactions():
     new_transactions = get_dca_transactions(public_key, signature, '259719', nonce, amount=125)
     for transaction in new_transactions:
         #transaction vypada takto: {'amount': 5.514e-05, 'price': 2252865, 'date': '2024-12-23'}
-        if not any(t['amount'] == transaction['amount'] and t['date'] == transaction['date'] for t in old_transactions):
-            transaction_date = datetime.strptime(transaction['date'], '%Y-%m-%d').date()
-
-            if not any(
-                    t['amount'] == transaction['amount'] and t['date'] == transaction_date for t in old_transactions):
-                new_transaction = Transaction(
-                    strategy_id=1,
-                    amount=transaction['amount'],
-                    price=transaction['price'],
-                    date=transaction_date
-                )
-                db.session.add(new_transaction)
+        if not any(round(float(t['amount']), 5) == round(float(transaction['amount']), 5)
+                   and t['date'].strftime('%Y-%m-%d') == transaction['date'] for t in old_transactions):
+            print("Adding new transaction")
+            new_transaction = Transaction(
+                strategy_id=strategy_id,
+                amount=transaction['amount'],
+                price=transaction['price'],
+                status='success',
+                date=datetime.strptime(transaction['date'], "%Y-%m-%d").date()
+            )
+            db.session.add(new_transaction)
+        else:
+            print("Transaction already exists")
 
     db.session.commit()
     return jsonify({"message": "Transactions added successfully"}), 201
@@ -140,7 +145,10 @@ def get_user(user_id):
     user = User.query.get(user_id)
     if user:
         return jsonify({"user_id": user.user_id, "username": user.username,
-                        'balance_btc': user.balance_btc, 'balance_eth': user.balance_eth, 'balance_czk': user.balance_czk, 'balance_locked': user.balance_locked})
+                        'balance_btc': user.balance_btc, 'balance_eth': user.balance_eth, 'balance_czk': user.balance_czk, 'balance_locked': user.balance_locked,
+                        'strategies': [{'strategy_id': strategy.strategy_id, 'amount': strategy.amount, 'frequency': strategy.frequency,
+                                        'limit': strategy.limit, 'avg_price': strategy.avg_price, 'goal': strategy.goal, 'balance': strategy.balance,
+                                        'num_of_transactions': strategy.num_of_transactions} for strategy in user.strategies]}), 200
     else:
         return jsonify({"message": "User not found"}), 404
 
@@ -150,7 +158,7 @@ def get_strategies(user_id):
     strategies_list = [{"strategy_id": strategy.strategy_id, "amount": strategy.amount, "frequency": strategy.frequency,
                         'limit': strategy.limit, 'avg_price': strategy.avg_price, 'goal': strategy.goal, 'balance': strategy.balance,
                         'num_of_transactions': strategy.num_of_transactions, 'transactions': [{'transaction_id': transaction.transaction_id,
-                                                                                             'amount': transaction.amount, 'price': transaction.price,
+                                                                                             'amount': transaction.amount, 'price': transaction.price, 'status': transaction.status,
                                                                                              'date': transaction.date} for transaction in strategy.transactions
                                                                                                 ]}
                        for strategy in strategies]
