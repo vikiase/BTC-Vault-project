@@ -1,296 +1,222 @@
-import requests
-from datetime import datetime, timedelta
-import hmac
-import hashlib
-from time import time
+from flask import Flask, request, jsonify, render_template
+from flask_sqlalchemy import SQLAlchemy
+from models import get_last_transaction, get_api_credentials, get_dca_limit_price, make_limit_order, check_order_status, get_pending_dca_transaction, cancel_pending_dca_transaction, make_instant_order, get_btc_czk_price
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
+
+app = Flask(__name__)
+
+#Creating an SQL database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+Base = declarative_base()
+class User(db.Model):
+    __tablename__ = 'users'
+
+    user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(30), nullable=False, unique=True)
+    password = db.Column(db.String(30), nullable=False)
+    public_key = db.Column(db.String(50), nullable=False)
+    private_key = db.Column(db.String(50), nullable=False)
+    api_user_id = db.Column(db.String(10), nullable=False)
+    balance_btc = db.Column(db.Float, default=0.0)
+    balance_eth = db.Column(db.Float, default=0.0)
+    balance_czk = db.Column(db.Float, default=0.0)
+    balance_locked = db.Column(db.Float, default=0.0)
+
+    strategies = db.relationship('Strategy', back_populates='user')
+class Strategy(db.Model):
+    __tablename__ = 'strategies'
+
+    strategy_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'))
+    amount = db.Column(db.Integer, nullable=False)
+    frequency = db.Column(db.Integer, nullable=False)
+    limit = db.Column(db.Integer, nullable=False)
+    avg_price = db.Column(db.Float, nullable=False)
+    goal = db.Column(db.Integer, nullable=False)
+    balance = db.Column(db.Float, nullable=False)
+    num_of_transactions = db.Column(db.Integer, nullable=False)
+
+    user = db.relationship('User', back_populates='strategies')
+    transactions = db.relationship('Transaction', back_populates='strategy')
+class Transaction(db.Model):
+    __tablename__ = 'transactions'
+
+    transaction_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    strategy_id = db.Column(db.Integer, db.ForeignKey('strategies.strategy_id'))
+    amount = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(10), nullable=False, default='FILLED')
+    order_id = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.DateTime, nullable=False)
+
+    strategy = db.relationship('Strategy', back_populates='transactions')
+with app.app_context():
+    db.create_all()
+
+#Database manipulation
+@app.route('/create_strategy', methods=['POST'])
+def create_new_strategy():
+    user_id = request.json['user_id']
+    amount = request.json['amount']
+    frequency = request.json['frequency']
+    limit = 0 if request.json.get('limit') is None else request.json['limit']
+    goal = request.json['goal']
+
+    new_strategy = Strategy(
+        user_id=user_id,
+        amount=amount,
+        frequency=frequency,
+        limit=limit,
+        avg_price=0,
+        goal=goal,
+        balance=0,
+        num_of_transactions=0
+    )
+
+    db.session.add(new_strategy)
+    db.session.commit()
+    return jsonify({"message": "Strategy added successfully", "strategy_id": new_strategy.strategy_id}), 201
+
+@app.route('/add_user', methods=['POST'])
+def add_new_user():
+    username = request.json['username']
+    password = request.json['password']
+    public_key = request.json['public_key']
+    private_key = request.json['private_key']
+    api_user_id = request.json['api_user_id']
+    new_user = User(
+        username=username,
+        password=password,
+        public_key=public_key,
+        private_key=private_key,
+        api_user_id=api_user_id
+    )
+
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"message": "User added successfully", "user_id": new_user.user_id}), 201
 
 
-def get_api_credentials(client_id, public_key, private_key):
-    def create_signature(client_id, public_key, private_key, nonce):
-        message = f"{nonce}{client_id}{public_key}".encode('utf-8')
-        signature = hmac.new(
-            private_key.encode('utf-8'),
-            message,
-            digestmod=hashlib.sha256
-        ).hexdigest()
-        return signature.upper()
-    nonce = int(time() * 1000)
-    signature = create_signature(client_id, public_key,private_key, nonce)
-    return public_key, nonce, signature
 
-def get_crypto_prices_usd():
-    url = "https://min-api.cryptocompare.com/data/pricemulti"
-    symbols = "BTC,ETH,SOL,ADA,XRP,LTC"
-    params = {
-        'fsyms': symbols,
-        'tsyms': 'USD',
-        'api_key': '441a7354c3d3c3d98631c057f30c39805b793f677e7a1a22892c9b8230377b14'
-    }
-
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        formatted_data = {}
-        for crypto, price_data in data.items():
-            formatted_data[f'{crypto}/USD'] = price_data['USD']
-        return formatted_data
-
-    except requests.exceptions.RequestException as e:
-        print(f"Chyba při získávání dat: {e}")
-        return None
-def get_all_current_prices():
-    url = "https://coinmate.io/api/tickerAll"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-
-        if data["error"]:
-            print(f"Chyba: {data['errorMessage']}")
-            return
-        czk_prices = {}
-        for pair, details in data["data"].items():
-            pair = pair.replace('_', '/')
-            czk_prices[pair] = details['last']
-
-        for pair, last in list(czk_prices.items()):
-            if pair[-3:] != 'CZK' or pair[:4] == 'USDT':
-                czk_prices.pop(pair)
-                continue
-            if pair[:3] == 'ADA' or pair[:3] == 'XRP':
-                czk_prices[pair] = round(last, 2)
-            else:
-                czk_prices[pair] = int(round(last, 0))
-
-        usd_prices = get_crypto_prices_usd()
-        for pair, last in list(usd_prices.items()):
-            if pair[:3] == 'ADA' or pair[:3] == 'XRP':
-                usd_prices[pair] = round(last, 3)
-            elif pair[:3] == 'SOL' or pair[:3] == 'LTC':
-                usd_prices[pair] = round(last, 2)
-            else:
-                usd_prices[pair] = int(round(last, 0))
-        return czk_prices, usd_prices
-    except requests.exceptions.RequestException as e:
-        print(f"Nastala chyba při získávání dat: {e}")
-
-#vraci {'CZK': 2360202, 'USD': 96576.58}
-def get_btc_current_price():
-    url = "https://coinmate.io/api/ticker?currencyPair=BTC_CZK"
-    result = {}
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        result['CZK'] = data['data']['last']
-    except requests.exceptions.RequestException as e:
-        print(f"Nastala chyba při získávání dat: {e}")
-        return None
-
-    url = "https://min-api.cryptocompare.com/data/pricemulti"
-    symbols = "BTC"
-    params = {
-        'fsyms': symbols,
-        'tsyms': 'USD',
-        'api_key': '441a7354c3d3c3d98631c057f30c39805b793f677e7a1a22892c9b8230377b14'
-    }
-
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        formatted_data = {}
-        for crypto, price_data in data.items():
-            formatted_data[f'{crypto}/USD'] = price_data['USD']
-        result['USD'] = formatted_data['BTC/USD']
-
-    except requests.exceptions.RequestException as e:
-        print(f"Chyba při získávání dat: {e}")
-        return None
-    return result
-
-#vraci float % change
-def get_btc_change():
-    # Coinmate API pro CZK
-    url = "https://coinmate.io/api/ticker?currencyPair=BTC_CZK"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        change = data['data']['change']
-        change = round(change, 2)
-        return change
-    except requests.exceptions.RequestException as e:
-        print(f"Nastala chyba při získávání dat z Coinmate: {e}")
-        return None
-
-#pro GUI
-def format_float(value):
-    if value.is_integer():
-        integer_part = "{:,}".format(int(value)).replace(",", " ")
-        return integer_part
+@app.route('/get_user/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = User.query.get(user_id)
+    if user:
+        return jsonify({"user_id": user.user_id, "username": user.username,
+                        'balance_btc': user.balance_btc, 'balance_eth': user.balance_eth, 'balance_czk': user.balance_czk, 'balance_locked': user.balance_locked,
+                        'strategies': [{'strategy_id': strategy.strategy_id, 'amount': strategy.amount, 'frequency': strategy.frequency,
+                                        'limit': strategy.limit, 'avg_price': strategy.avg_price, 'goal': strategy.goal, 'balance': strategy.balance,
+                                        'num_of_transactions': strategy.num_of_transactions} for strategy in user.strategies]}), 200
     else:
-        integer_part, decimal_part = str(value).split(".")
-        integer_part = "{:,}".format(int(integer_part)).replace(",", " ")
-        formatted_value = f"{integer_part}.{decimal_part}"
-        return formatted_value
+        return jsonify({"message": "User not found"}), 404
 
-#abych nemusel porad volat
-def get_btc_czk_price():
-    url = "https://coinmate.io/api/ticker?currencyPair=BTC_CZK"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        current_price = data['data']['last']
-        return current_price
-    except requests.exceptions.RequestException as e:
-        print(f"Nastala chyba při získávání dat: {e}")
-        return None
+@app.route('/get_strategies/<int:user_id>', methods=['GET'])
+def get_strategies(user_id):
+    strategies = Strategy.query.filter_by(user_id=user_id).all()
+    strategies_list = [{"strategy_id": strategy.strategy_id, "amount": strategy.amount, "frequency": strategy.frequency,
+                        'limit': strategy.limit, 'avg_price': strategy.avg_price, 'goal': strategy.goal, 'balance': strategy.balance,
+                        'num_of_transactions': len(strategy.transactions), 'transactions': [{'transaction_id': transaction.transaction_id,
+                                                                                             'amount': transaction.amount, 'price': transaction.price, 'status': transaction.status,
+                                                                                             'date': transaction.date} for transaction in strategy.transactions
+                                                                                                ]}
+                       for strategy in strategies]
+    return jsonify(strategies_list)
 
-#vraci list nejnovejsich 35 transakci
-def get_dca_transactions(public_key, signature, client_id, nonce, amount):
-    url = 'https://coinmate.io/api/transactionHistory'
-    params = {
-        'offset': 0,
-        'limit': 35,
-        'sort': 'ASC',
-        'timestampFrom': 1401390154803,
-        'clientId': client_id,
-        'publicKey': public_key,
-        'nonce': nonce,
-        'signature': signature
-    }
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    response = requests.post(url, data=params, headers=headers)
+#toto by se melo provest kazdy interval dca
+@app.route('/make_dca_order', methods=['POST', 'GET'])
+def make_dca_limit_order():
+    user_id, strategy_id = request.json['user_id'], request.json['strategy_id']
+    user_data, strategy_data = User.query.get(user_id), Strategy.query.get(strategy_id)
 
-    if response.status_code == 200:
+    limit_price = get_dca_limit_price(strategy_data.limit)
+    amount = strategy_data.amount
 
-        data = response.json()['data']
+    public_key = user_data.public_key
+    private_key = user_data.private_key
+    api_user_id = user_data.api_user_id
+    public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
 
-        buy_btc_transactions = []
-        final = []
-        for trans in data:
-            if trans['transactionType'] == 'BUY' and trans['amountCurrency'] == 'BTC':
-                buy = trans['price']*trans['amount']+trans['fee']
-                if amount+1 > buy > amount-1:
-                    buy_btc_transactions.append(trans)
-        for transaction in buy_btc_transactions:
-            t = {}
-            t['amount'] = transaction['amount']
-            t['price'] = transaction['price']
-            t['date'] = datetime.fromtimestamp(transaction['timestamp']/1000).strftime('%Y-%m-%d')
+    response = make_limit_order(limit_price, amount, api_user_id, public_key, nonce, signature)
+    if response['error'] == False:
+        public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+        order_id = get_pending_dca_transaction(public_key, signature, api_user_id, nonce, amount)
 
-            final.append(t)
-        return final
+        new_transaction = Transaction(
+            strategy_id=strategy_id,
+            amount=amount,
+            price=limit_price,
+            status='OPEN',
+            order_id=order_id,
+            date=datetime.now()
+        )
+
+        db.session.add(new_transaction)
+        db.session.commit()
+        return jsonify({"message": "Order placed successfully"}), 201
     else:
-        print(f"Error: {response.status_code}, {response.reason}")
+        return jsonify({"message": f"{response['errorMessage']}"}), 400
 
-#vraci int Id Transakce
-def get_pending_dca_transaction(public_key, signature, client_id, nonce, amount):
-    url = 'https://coinmate.io/api/openOrders'
-    params = {
-        'clientId': client_id,
-        'publicKey': public_key,
-        'nonce': nonce,
-        'signature': signature,
-    }
+#KDYZ NASTAL DCA DEN
+@app.route('/cancel_and_buy_dca', methods=['POST', 'GET'])
+def cancel_and_buy_dca():
+    user_id, strategy_id = request.json['user_id'], request.json['strategy_id']
+    user_data, strategy_data = User.query.get(user_id), Strategy.query.get(strategy_id)
 
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    response = requests.post(url, data=params, headers=headers)
-    if response.status_code == 200:
-        data = response.json()['data']
-        for transaction in data:
-            buy = transaction['price'] * transaction['amount']
-            if amount + 1 > buy > amount - 1:
-                return transaction['id']
-    else:
-        print(f"Error: {response.status_code}, {response.reason}")
-#vraci True
-def cancel_pending_dca_transaction(public_key, signature, client_id, nonce, transaction_id):
-    url = 'https://coinmate.io/api/cancelOrder'
-    params = {
-        'orderId': transaction_id,
-        'clientId': client_id,
-        'publicKey': public_key,
-        'nonce': nonce,
-        'signature': signature,
-    }
+    amount = strategy_data.amount
+    order_id = strategy_data.transactions[-1].order_id
 
-    headers = {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    response = requests.post(url, data=params, headers=headers)
-    if response.status_code == 200:
-        print("Order cancelled")
-        return True
-    else:
-        print(f"Error: {response.status_code}, {response.reason}")
+    public_key = user_data.public_key
+    private_key = user_data.private_key
+    api_user_id = user_data.api_user_id
+
+    public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+    limit_order_status = check_order_status(api_user_id, public_key, nonce, signature, order_id)
+
+    if limit_order_status == 'OPEN':
+        strategy_data.transactions[-1].status = 'CANCELLED'
+        db.session.commit()
+
+        public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+        transaction_id = get_pending_dca_transaction(public_key, signature, api_user_id, nonce, amount)
+
+        if transaction_id:
+            public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+
+            if cancel_pending_dca_transaction(public_key, signature, api_user_id, nonce, transaction_id):
+                public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+
+                make_instant_order(amount, api_user_id, public_key, nonce, signature)
+                public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+
+                order_id = get_last_transaction(public_key, signature, api_user_id, nonce, amount)
+
+                new_transaction = Transaction(
+                    strategy_id=strategy_id,
+                    amount=amount,
+                    price=get_btc_czk_price(),
+                    status='FILLED',
+                    order_id=order_id,
+                    date=datetime.now()
+                )
+                db.session.add(new_transaction)
+                db.session.commit()
+                return jsonify({"message": "Transaction cancelled and instant order placed"}), 200
+
+            else: return jsonify({"message": "Transaction not cancelled"}), 400
+
+        else: return jsonify({"message": "Transaction not found"}), 404
+
+    else: return jsonify({"message": "Order already filled"}), 400
 
 
-#tvoreni objednavek
-def get_dca_limit_price(limit):
-    current_price = get_btc_czk_price()
-    limit_price = int(float(current_price)-float(current_price)*limit/100)
-    return limit_price
-def make_limit_order(limit_price, amount, client_id, public_key, nonce, signature):
-    btc_amount = amount/limit_price
-    btc_amount = float(f'{btc_amount:.8f}')
-    print(f"Amount: {btc_amount}")
-    data = {
-        "amount": btc_amount,
-        "currencyPair": "btc_czk",
-        "price": limit_price,
-        "clientId": client_id,
-        "publicKey": public_key,
-        "nonce": nonce,
-        "signature": signature,
-    }
+#Frontend
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
+if __name__ == '__main__':
+    app.run(debug=True)
 
-    url = "https://coinmate.io/api/buyLimit"
-    response = requests.post(url, data=data, headers=headers)
-    response_json = response.json()
-    if not response_json.get("error", True):
-        print("Request successful:", response_json)
-    else:
-        print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
-
-def make_instant_order(amount, client_id, public_key, nonce, signature):
-    data = {
-        "total": amount,
-        "currencyPair": "btc_czk",
-        "clientId": client_id,
-        "publicKey": public_key,
-        "nonce": nonce,
-        "signature": signature
-    }
-
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-    url = "https://coinmate.io/api/buyInstant"
-    response = requests.post(url, data=data, headers=headers)
-    response_json = response.json()
-    if not response_json.get("error", True):
-        print("Request successful:", response_json)
-    else:
-        print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
-
-#zrusi puvodni limit prikaz a provede nakup za trzni cenu
-def cancel_and_buy(amount, client_id, public_key, nonce, signature):
-    transaction_id = get_pending_dca_transaction(public_key, signature, client_id, nonce, amount)
-    if transaction_id:
-        cancel_pending_dca_transaction(public_key, signature, client_id, nonce, transaction_id)
-        make_instant_order(amount, client_id, public_key, nonce, signature)
-    else:
-        print("No pending transactions found")
