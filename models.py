@@ -1,12 +1,13 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 import hmac
 import hashlib
 from time import time
 
 
+# basic pro ziskani udaju na volani api. Vraci tuple (public_key, nonce, signature)
 def get_api_credentials(client_id, public_key, private_key):
-    def create_signature(client_id, public_key, private_key, nonce):
+    def create_signature():
         message = f"{nonce}{client_id}{public_key}".encode('utf-8')
         signature = hmac.new(
             private_key.encode('utf-8'),
@@ -14,10 +15,13 @@ def get_api_credentials(client_id, public_key, private_key):
             digestmod=hashlib.sha256
         ).hexdigest()
         return signature.upper()
+
     nonce = int(time() * 1000)
-    signature = create_signature(client_id, public_key,private_key, nonce)
+    signature = create_signature()
     return public_key, nonce, signature
 
+
+# FRONTEND FUNKCE
 def get_crypto_prices_usd():
     url = "https://min-api.cryptocompare.com/data/pricemulti"
     symbols = "BTC,ETH,SOL,ADA,XRP,LTC"
@@ -40,6 +44,8 @@ def get_crypto_prices_usd():
     except requests.exceptions.RequestException as e:
         print(f"Chyba při získávání dat: {e}")
         return None
+
+
 def get_all_current_prices():
     url = "https://coinmate.io/api/tickerAll"
     try:
@@ -76,7 +82,7 @@ def get_all_current_prices():
     except requests.exceptions.RequestException as e:
         print(f"Nastala chyba při získávání dat: {e}")
 
-#vraci {'CZK': 2360202, 'USD': 96576.58}
+# vraci {'CZK': 2360202, 'USD': 96576.58}
 def get_btc_current_price():
     url = "https://coinmate.io/api/ticker?currencyPair=BTC_CZK"
     result = {}
@@ -111,7 +117,8 @@ def get_btc_current_price():
         return None
     return result
 
-#vraci float % change
+
+# vraci float % change
 def get_btc_change():
     # Coinmate API pro CZK
     url = "https://coinmate.io/api/ticker?currencyPair=BTC_CZK"
@@ -126,7 +133,7 @@ def get_btc_change():
         print(f"Nastala chyba při získávání dat z Coinmate: {e}")
         return None
 
-#pro GUI
+
 def format_float(value):
     if value.is_integer():
         integer_part = "{:,}".format(int(value)).replace(",", " ")
@@ -137,7 +144,11 @@ def format_float(value):
         formatted_value = f"{integer_part}.{decimal_part}"
         return formatted_value
 
-#abych nemusel porad volat
+
+# -----------------------------------------------------------------------------------------------------------------------
+# BACKEND FUNKCE
+
+# abych nemusel porad volat
 def get_btc_czk_price():
     url = "https://coinmate.io/api/ticker?currencyPair=BTC_CZK"
     try:
@@ -150,12 +161,13 @@ def get_btc_czk_price():
         print(f"Nastala chyba při získávání dat: {e}")
         return None
 
-#vraci list nejnovejsich 35 transakci
-def get_dca_transactions(public_key, signature, client_id, nonce, amount):
+
+# vraci id posledni transakce
+def get_last_transaction(public_key, signature, client_id, nonce, amount):
     url = 'https://coinmate.io/api/transactionHistory'
     params = {
         'offset': 0,
-        'limit': 35,
+        'limit': 1,
         'sort': 'ASC',
         'timestampFrom': 1401390154803,
         'clientId': client_id,
@@ -169,36 +181,69 @@ def get_dca_transactions(public_key, signature, client_id, nonce, amount):
     response = requests.post(url, data=params, headers=headers)
 
     if response.status_code == 200:
-
         data = response.json()['data']
-
-        buy_btc_transactions = []
-        final = []
-        for trans in data:
-            if trans['transactionType'] == 'BUY' and trans['amountCurrency'] == 'BTC':
-                buy = trans['price']*trans['amount']+trans['fee']
-                if amount+1 > buy > amount-1:
-                    buy_btc_transactions.append(trans)
-        for transaction in buy_btc_transactions:
-            t = {}
-            t['amount'] = transaction['amount']
-            t['price'] = transaction['price']
-            t['date'] = datetime.fromtimestamp(transaction['timestamp']/1000).strftime('%Y-%m-%d')
-
-            final.append(t)
-        return final
+        return data[0]['orderId']
     else:
         print(f"Error: {response.status_code}, {response.reason}")
 
-#tvoreni objednavek
+
+# vraci int Id Transakce
+def get_pending_dca_transaction(public_key, signature, client_id, nonce, amount):
+    url = 'https://coinmate.io/api/openOrders'
+    params = {
+        'clientId': client_id,
+        'publicKey': public_key,
+        'nonce': nonce,
+        'signature': signature,
+    }
+
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    response = requests.post(url, data=params, headers=headers)
+    if response.status_code == 200:
+        data = response.json()['data']
+        for transaction in data:
+            buy = transaction['price'] * transaction['amount']
+            if amount + 1 > buy > amount - 1:
+                return transaction['id']
+    else:
+        print(f"Error: {response.status_code}, {response.reason}")
+
+
+# vraci True
+def cancel_pending_dca_transaction(public_key, signature, client_id, nonce, transaction_id):
+    url = 'https://coinmate.io/api/cancelOrder'
+    params = {
+        'orderId': transaction_id,
+        'clientId': client_id,
+        'publicKey': public_key,
+        'nonce': nonce,
+        'signature': signature,
+    }
+
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    response = requests.post(url, data=params, headers=headers)
+    if response.status_code == 200:
+        print("Order cancelled")
+        return True
+    else:
+        print(f"Error: {response.status_code}, {response.reason}")
+
+
+
+# tvoreni objednavek
 def get_dca_limit_price(limit):
     current_price = get_btc_czk_price()
-    limit_price = int(float(current_price)-float(current_price)*limit/100)
+    limit_price = int(float(current_price) - float(current_price) * limit / 100)
     return limit_price
+
+
 def make_limit_order(limit_price, amount, client_id, public_key, nonce, signature):
-    btc_amount = amount/limit_price
+    btc_amount = amount / limit_price
     btc_amount = float(f'{btc_amount:.8f}')
-    print(f"Amount: {btc_amount}")
     data = {
         "amount": btc_amount,
         "currencyPair": "btc_czk",
@@ -221,6 +266,8 @@ def make_limit_order(limit_price, amount, client_id, public_key, nonce, signatur
     else:
         print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
 
+    return response_json
+
 def make_instant_order(amount, client_id, public_key, nonce, signature):
     data = {
         "total": amount,
@@ -239,5 +286,28 @@ def make_instant_order(amount, client_id, public_key, nonce, signature):
     response_json = response.json()
     if not response_json.get("error", True):
         print("Request successful:", response_json)
+    else:
+        print('aha')
+        print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
+
+
+def check_order_status(client_id, public_key, nonce, signature, order_id):
+    data = {
+        "clientId": client_id,
+        "publicKey": public_key,
+        "nonce": nonce,
+        "signature": signature,
+        "orderId": order_id
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    url = "https://coinmate.io/api/orderById"
+    response = requests.post(url, data=data, headers=headers)
+    response_json = response.json()
+    if not response_json.get("error", True):
+        print("Request successful:", response_json)
+        return response_json['data']['status']
     else:
         print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
