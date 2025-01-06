@@ -287,7 +287,6 @@ def make_instant_order(amount, client_id, public_key, nonce, signature):
     if not response_json.get("error", True):
         print("Request successful:", response_json)
     else:
-        print('aha')
         print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
 
 
@@ -311,3 +310,25 @@ def check_order_status(client_id, public_key, nonce, signature, order_id):
         return response_json['data']['status']
     else:
         print("Error occurred:", response_json.get("errorMessage", "Unknown error"))
+
+def get_balances(client_id, public_key, nonce, signature):
+    params = {
+        "clientId": client_id,
+        "publicKey": public_key,
+        "nonce": nonce,
+        "signature": signature,
+    }
+
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+
+    response = requests.post('https://coinmate.io/api/balances', data=params, headers=headers)
+    response_json = response.json()
+
+    if not response_json.get("error", True):
+        czk_balance = response_json['data']['CZK']['available']
+        btc_balance = response_json['data']['BTC']['balance']
+        eth_balance = response_json['data']['ETH']['balance']
+        balance_locked = response_json['data']['CZK']['available']
+        return czk_balance, btc_balance, eth_balance, balance_locked
