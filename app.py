@@ -44,6 +44,7 @@ class Strategy(db.Model):
 
     user = db.relationship('User', back_populates='strategies')
     transactions = db.relationship('Transaction', back_populates='strategy')
+#musim pridat type - BUY/SELL
 class Transaction(db.Model):
     __tablename__ = 'transactions'
 
@@ -97,6 +98,7 @@ def edit_strategy(user_id, strategy_id):
     strategy.goal = data.get('goal', strategy.goal)
 
     db.session.commit()
+    return jsonify({"message": f"Strategy  {strategy.strategy_id}edited successfully"}), 201
 
 @app.route('/update', methods=['POST', 'GET'])
 def update():
@@ -118,7 +120,35 @@ def update():
     db.session.commit()
 
     #update strategies
+    strategies = Strategy.query.filter_by(user_id=user_id).all()
+    strat_ids = [strategy.strategy_id for strategy in strategies]
 
+    for id in strat_ids:
+        strategy = Strategy.query.get(id)
+        transactions = strategy.transactions
+        bought =  float(0)
+        amount = float(0)
+        for transaction in transactions:
+            if transaction['status'] == 'FILLED':
+                purchase = transaction['amount'] * transaction['price']
+                bought += purchase
+                amount+= transaction['amount']
+
+        num_of_transactions = strategy.num_of_transactions
+        strategy.avg_price = round(bought/num_of_transactions, 2)
+
+        public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+        current_btc_price = int(get_btc_czk_price())
+
+        strategy.balance = round(current_btc_price*amount, 2)
+
+        db.session.commit()
+
+    return jsonify({"message": f"User {user.user_id}: {user.username}updated successfully"}), 201
+
+
+    avg_price = ''
+    balance = ''
 
 
 @app.route('/add_user', methods=['POST'])
@@ -169,7 +199,7 @@ def get_strategies(user_id):
                         'limit': strategy.limit, 'avg_price': strategy.avg_price, 'goal': strategy.goal, 'balance': strategy.balance,
                         'num_of_transactions': len(strategy.transactions), 'transactions': [{'transaction_id': transaction.transaction_id,
                                                                                              'amount': transaction.amount, 'price': transaction.price, 'status': transaction.status,
-                                                                                             'date': transaction.date} for transaction in strategy.transactions
+                                                                                             'date': transaction.date, 'order_id': transaction.order_id} for transaction in strategy.transactions
                                                                                                 ]}
                        for strategy in strategies]
     return jsonify(strategies_list)
