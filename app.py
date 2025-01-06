@@ -1,6 +1,9 @@
+from crypt import methods
+
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
-from models import get_last_transaction, get_api_credentials, get_dca_limit_price, make_limit_order, check_order_status, get_pending_dca_transaction, cancel_pending_dca_transaction, make_instant_order, get_btc_czk_price
+from models import (get_last_transaction, get_api_credentials, get_dca_limit_price, make_limit_order, check_order_status,
+                    get_pending_dca_transaction, cancel_pending_dca_transaction, make_instant_order, get_btc_czk_price, get_balances)
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -80,6 +83,44 @@ def create_new_strategy():
     db.session.commit()
     return jsonify({"message": "Strategy added successfully", "strategy_id": new_strategy.strategy_id}), 201
 
+@app.route('/edit_strategy/<int:user_id>/<int:strategy_id>', methods=['POST', 'GET'])
+def edit_strategy(user_id, strategy_id):
+    strategy = Strategy.query.filter_by(user_id=user_id, strategy_id=strategy_id).first()
+    if not strategy:
+        return jsonify({"error": "Strategy not found"}), 404
+
+    data = request.get_json()
+
+    strategy.amount = data.get('amount', strategy.amount)
+    strategy.frequency = data.get('frequency', strategy.frequency)
+    strategy.limit = data.get('limit', strategy.limit)
+    strategy.goal = data.get('goal', strategy.goal)
+
+    db.session.commit()
+
+@app.route('/update', methods=['POST', 'GET'])
+def update():
+    user_id = request.json['user_id']
+    user = User.query.get(user_id)
+    data = request.get_json()
+
+    public_key = user.public_key
+    private_key = user.private_key
+    api_user_id = user.api_user_id
+    public_key, nonce, signature = get_api_credentials(api_user_id, public_key, private_key)
+
+    #update user
+    czk_balance, btc_balance, eth_balance, balance_locked = get_balances(api_user_id, public_key, nonce, signature)
+    user.balance_btc = btc_balance
+    user.balance_eth = eth_balance
+    user.balance_czk = czk_balance
+    user.balance_locked = balance_locked
+    db.session.commit()
+
+    #update strategies
+
+
+
 @app.route('/add_user', methods=['POST'])
 def add_new_user():
     username = request.json['username']
@@ -112,6 +153,14 @@ def get_user(user_id):
                                         'num_of_transactions': strategy.num_of_transactions} for strategy in user.strategies]}), 200
     else:
         return jsonify({"message": "User not found"}), 404
+
+@app.route('/get_user_id', methods=['POST', 'GET'])
+def get_user_id():
+    username = request.json['username']
+    user = User.query.filter_by(username).first()
+    if user:
+        return int(user.user_id)
+    return None
 
 @app.route('/get_strategies/<int:user_id>', methods=['GET'])
 def get_strategies(user_id):
@@ -219,4 +268,3 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
