@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Crypto Vault</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        .sidebar {
+            width: 240px;
+            background-color: #1e1e1e;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .sidebar h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: lightgray;
+        }
+        .sidebar a, .sidebar button {
+            color: white;
+            text-decoration: none;
+            background: none;
+            border: none;
+            text-align: center;
+            width: 100%;
+            padding: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background 0.3s;
+            border-radius: 5px;
+        }
+        .sidebar a:hover, .sidebar button:hover {
+            background: #333;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 40px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        h2 {
+            font-size: 20px;
+            color: #bbb;
+            margin-bottom: 50px;
+            font-style: italic;
+        }
+        .btc-box {
+            background: rgba(255, 165, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .btc-icon {
+            width: 35px;
+            height: 35px;
+            background: orange;
+            color: black;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 20px;
+        }
+        .circle-container {
+            display: flex;
+            justify-content: center;
+            gap: 70px;
+            margin: 50px 0;
+        }
+        .circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+        .dca {
+            background: conic-gradient(green 0% 60%, gray 60% 100%);
+        }
+        .grid {
+            background: gray;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        button {
+            padding: 15px 20px;
+            background: #6200ea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #4500b5;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Menu</h2>
+        <a href="#">DCA Strategy</a>
+        <a href="#">Grid Strategy</a>
+        <a href="#">BTC Graphs</a>
+        <a href="#">My Profile</a>
+        <button onclick="logout()">Log Out</button>
+    </div>
+
+    <div class="content">
+        <h1>Crypto Vault</h1>
+        <h2>Profit on Bitcoin without emotions.</h2>
+
+        <p><strong>Welcome user!</strong></p>
+
+        <div class="btc-box">
+            <div class="btc-icon">₿</div>
+            <div>
+                BTC Price: <br>
+                <span style="color: lightgreen;">98 500 $</span> |
+                <span style="color: lightblue;">2 250 000 CZK</span>
+            </div>
+        </div>
+
+        <div class="circle-container">
+            <div class="circle dca">DCA Strategy</div>
+            <div class="circle grid">Grid Strategy</div>
+        </div>
+
+        <div class="buttons">
+            <button>Edit Credentials</button>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            alert("Logging out...");
+            window.location.href = "login.html";
+        }
+    </script>
+
+</body>
+</html>
