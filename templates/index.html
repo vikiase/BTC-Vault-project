@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask App Test</title>
+</head>
+<body>
+    <h1>Test Flask API</h1>
+
+    <!-- Add User Form -->
+    <h2>Add New User</h2>
+    <form id="addUserForm">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required><br>
+        <label for="public_key">Public Key:</label><br>
+        <input type="text" id="public_key" name="public_key" required><br>
+        <label for="private_key">Private Key:</label><br>
+        <input type="text" id="private_key" name="private_key" required><br>
+        <label for="api_user_id">API User ID:</label><br>
+        <input type="number" id="api_user_id" name="api_user_id" required><br>
+        <button type="submit">Add User</button>
+    </form>
+    <pre id="addUserResponse"></pre>
+
+    <!-- Create Strategy Form -->
+    <h2>Create Strategy</h2>
+    <form id="createStrategyForm">
+        <label for="user_id">User ID:</label><br>
+        <input type="number" id="user_id" name="user_id" required><br>
+        <label for="amount">Amount:</label><br>
+        <input type="number" id="amount" name="amount" required><br>
+        <label for="amount">Limit:</label><br>
+        <input type="number" id="limit" name="limit" required><br>
+        <label for="frequency">Frequency:</label><br>
+        <input type="number" id="frequency" name="frequency" required><br>
+        <label for="goal">Goal:</label><br>
+        <input type="number" id="goal" name="goal" required><br>
+        <button type="submit">Create Strategy</button>
+    </form>
+    <pre id="createStrategyResponse"></pre>
+
+
+    <!-- Get User Info -->
+    <h2>Get User Info</h2>
+    <form id="getUserForm">
+        <label for="get_user_id">User ID:</label><br>
+        <input type="number" id="get_user_id" name="get_user_id" required><br>
+        <button type="submit">Get User Info</button>
+    </form>
+    <pre id="getUserResponse"></pre>
+
+    <!-- Get Strategies Info -->
+    <h2>Get User Strategies</h2>
+    <form id="getStrategiesForm">
+        <label for="get_strategies_user_id">User ID:</label><br>
+        <input type="number" id="get_strategies_user_id" name="get_strategies_user_id" required><br>
+        <button type="submit">Get Strategies</button>
+    </form>
+    <pre id="getStrategiesResponse"></pre>
+
+        <h2>Make DCA Limit Order</h2>
+    <form id="makeDcaOrderForm">
+        <label for="make_user_id">User ID:</label><br>
+        <input type="number" id="make_user_id" name="user_id" required><br>
+        <label for="make_strategy_id">Strategy ID:</label><br>
+        <input type="number" id="make_strategy_id" name="strategy_id" required><br>
+        <button type="submit">Make DCA Order</button>
+    </form>
+    <pre id="makeDcaOrderResponse"></pre>
+        <!-- Cancel and Buy DCA -->
+    <h2>Cancel and Buy DCA</h2>
+    <form id="cancelAndBuyDcaForm">
+        <label for="cancel_user_id">User ID:</label><br>
+        <input type="number" id="cancel_user_id" name="user_id" required><br>
+        <label for="cancel_strategy_id">Strategy ID:</label><br>
+        <input type="number" id="cancel_strategy_id" name="strategy_id" required><br>
+        <button type="submit">Cancel and Buy DCA</button>
+    </form>
+    <pre id="cancelAndBuyDcaResponse"></pre>
+
+    <script>
+        // Add User Form
+        document.getElementById('addUserForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                public_key: document.getElementById('public_key').value,
+                private_key: document.getElementById('private_key').value,
+                api_user_id: document.getElementById('api_user_id').value
+            };
+            fetch('/add_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => document.getElementById('addUserResponse').textContent = JSON.stringify(data, null, 2))
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Create Strategy Form
+        document.getElementById('createStrategyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = {
+                user_id: document.getElementById('user_id').value,
+                amount: document.getElementById('amount').value,
+                limit: document.getElementById('limit').value,
+                frequency: document.getElementById('frequency').value,
+                goal: document.getElementById('goal').value
+            };
+            fetch('/create_strategy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => document.getElementById('createStrategyResponse').textContent = JSON.stringify(data, null, 2))
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Get User Info Form
+        document.getElementById('getUserForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userId = document.getElementById('get_user_id').value;
+            fetch(`/get_user/${userId}`, {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => document.getElementById('getUserResponse').textContent = JSON.stringify(data, null, 2))
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Get Strategies Info Form
+        document.getElementById('getStrategiesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userId = document.getElementById('get_strategies_user_id').value;
+            fetch(`/get_strategies/${userId}`, {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => document.getElementById('getStrategiesResponse').textContent = JSON.stringify(data, null, 2))
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Make DCA Order Form
+        document.getElementById('makeDcaOrderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = {
+                user_id: document.getElementById('make_user_id').value,
+                strategy_id: document.getElementById('make_strategy_id').value
+            };
+            fetch('/make_dca_order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('makeDcaOrderResponse').textContent = 'Order placed successfully!';
+                } else {
+                    document.getElementById('makeDcaOrderResponse').textContent =
+                        `Error: ${data.error || 'Unknown error occurred'}`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('makeDcaOrderResponse').textContent = `Error: ${error.message}`;
+                console.error('Error:', error);
+            });
+        });
+        // Cancel and Buy DCA Form
+    document.getElementById('cancelAndBuyDcaForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const data = {
+            user_id: document.getElementById('cancel_user_id').value,
+            strategy_id: document.getElementById('cancel_strategy_id').value
+        };
+        fetch('/cancel_and_buy_dca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (response.ok) {
+                document.getElementById('cancelAndBuyDcaResponse').textContent = data.message;
+            } else {
+                document.getElementById('cancelAndBuyDcaResponse').textContent =
+                    `Error: ${data.message || 'Unknown error occurred'}`;
+            }
+        })
+        .catch(error => {
+            document.getElementById('cancelAndBuyDcaResponse').textContent = `Error: ${error.message}`;
+            console.error('Error:', error);
+        });
+    });
+    </script>
+</body>
+</html>
