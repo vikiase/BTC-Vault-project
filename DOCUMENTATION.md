@@ -1,4 +1,4 @@
-# Project Documentation
+# Project Documentation - currently works only for ideal user, not tested yet :(
 
 ## Overview
 This project is a Python-based application designed to manage cryptocurrency investments using the Coinmate API. It provides functionality for Dollar-Cost Averaging (DCA) and grid trading strategies, along with tools for viewing and managing Bitcoin prices and API credentials. Below is a detailed description of each `.py` file and its functions.
