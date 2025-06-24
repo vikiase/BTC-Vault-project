@@ -1,24 +1,23 @@
-# BTC Vault - STACK SATS FOR YOUR BETTER FUTURE
+# BTC Vault - Stack Sats for a Better Future!
 
 ## Introduction
-BTC Vault is an CLI application designed for Dollar-Cost Averaging (DCA) and other investment strategies, specifically for Bitcoin (BTC). The inspiration for this project came from Lubos Kovarik's stosuj.cz platform, which I greatly admire. I would like to credit him for his work, and as such, this project is non-commercial.
+**BTC Vault** is a command-line application designed for Dollar-Cost Averaging (DCA) and other investment strategies, primarily focused on Bitcoin (BTC). This project was inspired by the **stosuj.cz** platform created by Luboš Kovářík, whom I greatly admire. I would like to thank him for his work, and this project is non-commercial.
 
-This project is primarily built to showcase my technical skills in **Python**, **APIs**, **SQL databases**, **Git** and **frontend development**. The goal is to provide a practical tool for users who want to automate their BTC investment strategies while maintaining control over their funds.
+The main goal of this project is to showcase my technical skills in **Python**, **API**, **Git**, **data handling**, **automation**, **encryption**, **modularity - program organization**, and most importantly, **creating a meaningful and practical project**. The aim is to provide a practical tool for users who want to automate their BTC investment strategies.
 
 ## How It Works
-It interacts with the **Coinmate API** to facilitate automated BTC purchases. Users need an account on the Coinmate exchange, as the platform will execute orders directly within their Coinmate account. The user also needs to have sufficient funds on the exchange for the strategy to work.
+The application interacts with **Coinmate API** to automate BTC purchases. Users must have an account on the Coinmate exchange, as the platform executes orders directly on their account. Additionally, users must have sufficient funds on the exchange for the strategy to function properly.
 
-The core feature is the **DCA (Dollar-Cost Averaging) strategy** for Bitcoin investment. Users can configure their strategy by selecting the following parameters:
+The main feature is the **DCA (Dollar-Cost Averaging) strategy** for investing in Bitcoin. Users can configure their strategy using the following parameters:
 - **Interval**: Define how often purchases are made (e.g., daily, weekly).
-- **Amount**: Specify how much to invest with each order.
-- **Price Limit** : Set a price limit to ensure purchases are made at favorable rates.
+- **Investment Amount**: Specify how much to invest in each transaction.
+- **Price Limit**: Set a price limit to ensure advantageous purchases.
 
-This approach is designed to minimize the impact of market volatility and increase the likelihood of achieving long-term success in the crypto market.
+This strategy is designed to minimize the negative impact of market volatility and increase the likelihood of achieving long-term success in the crypto market.
 
-## Key Advantages
-- **Security**: I do not have access to withdraw any funds from your account. In the event of a security breach, your funds remain secure on your Coinmate account, and no one (including myself) can access them.
-- **Fully Automated**: Once configured, the application runs automatically, executing the user's chosen investment strategy without manual intervention.
-- **Customizable**: The DCA strategy allows users to tailor their investments to fit their risk tolerance and financial goals.
+## Key Benefits
+- **Security**: I do not have access to any funds in your account. In the event of a security breach, your funds remain safe in your Coinmate account, and no one (including me) can access them.
+- **Fully Automated**: Once the strategy is set, the application runs automatically and executes purchases according to the chosen investment strategy without manual intervention.
+- **Customizable**: The DCA strategy allows users to tailor their investments to match their risk profile and financial goals.
 
-**BTC Vault** is a powerful tool for anyone looking to make consistent, long-term Bitcoin investments while keeping control over their funds and reducing exposure to short-term market fluctuations.
-
+**BTC Vault** is a powerful tool for anyone looking to make consistent, long-term investments in Bitcoin, maintain control over their funds, and minimize exposure to short-term market fluctuations.
