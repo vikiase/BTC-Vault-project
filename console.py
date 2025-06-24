@@ -1,7 +1,9 @@
 import models
-import json
 import os
 from datetime import datetime, timedelta
+from getpass import getpass
+import security
+import sys
 
 def help():
     print('Available commands:')
@@ -25,24 +27,27 @@ def help():
 def view_dca():
     print('Viewing DCA strategy information...')
     try:
-        with open('dca_strategy.json', 'r') as f:
-            dca_strategy = json.load(f)
-        print('Current DCA strategy settings:')
-        print(f"Amount: {dca_strategy['amount']} CZK, Limit: {dca_strategy['limit']}%")
-        print(f"Frequency: {dca_strategy['frequency']} days, Start Day: {dca_strategy['start_day']}\n")
+        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
+        if dca_strategy:
+            print('Current DCA strategy settings:')
+            print(f"Amount: {dca_strategy['amount']} CZK, Limit: {dca_strategy['limit']}%")
+            print(f"Frequency: {dca_strategy['frequency']} days, Start Day: {dca_strategy['start_day']}\n")
 
-        print('Current DCA strategy statistics (update every DCA day):')
-        print(f'Average price: {format_price(dca_strategy["average_price"])} CZK')
-        print(f"Fiat Amount: {models.get_btc_current_price()['CZK']*dca_strategy['btc_amount']} CZK, BTC Amount: {dca_strategy['btc_amount']} BTC")
-        print(f"Goal: {dca_strategy['goal']} CZK, completion: {round((dca_strategy['btc_amount'] * models.get_btc_current_price()['CZK']) / dca_strategy['goal'] * 100, 2)}%")
+            print('Current DCA strategy statistics (update every DCA day):')
+            print(f'Average price: {format_price(dca_strategy["average_price"])} CZK')
+            print(
+                f"Fiat Amount: {models.get_btc_current_price()['CZK'] * dca_strategy['btc_amount']} CZK, BTC Amount: {dca_strategy['btc_amount']} BTC")
+            print(
+                f"Goal: {dca_strategy['goal']} CZK, completion: {round((dca_strategy['btc_amount'] * models.get_btc_current_price()['CZK']) / dca_strategy['goal'] * 100, 2)}%")
 
+        else:
+            print('No DCA strategy found. Please start a new one.')
     except FileNotFoundError:
-        print('No DCA strategy found. Please start a new one.')
+        print('No DCA strategy file found. Please start a new one.')
 
 def edit_dca():
     try:
-        with open('dca_strategy.json', 'r') as f:
-            dca_strategy = json.load(f)
+        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
         print('Current DCA strategy settings:')
         print(f"Amount: {dca_strategy['amount']} CZK")
         print(f"Frequency: {dca_strategy['frequency']} days")
@@ -56,8 +61,9 @@ def edit_dca():
             create_dca()
         else:
             print('DCA strategy settings not changed.')
+
     except FileNotFoundError:
-        print('No DCA strategy found. Please start a new one.')
+        print('No DCA strategy file found. Please start a new one.')
 
 
 def create_dca():
@@ -102,24 +108,8 @@ def create_dca():
     if amount.isdigit() and frequency.isdigit() and limit.isdigit() and goal.isdigit():
         days_diff = (investment_date - today).days
         try:
-            with open('dca_strategy.json', 'r') as f:
-                existing_strategy = json.load(f)
-                with open('dca_strategy.json', 'w') as f:
-                    dca_strategy = {
-                        'amount': int(amount),
-                        'frequency': int(frequency),
-                        'start_day': int(start_day),
-                        'investment_date': investment_date.strftime('%Y-%m-%d'),
-                        'limit': int(limit),
-                        'goal': int(goal),
-                        'btc_amount': existing_strategy['btc_amount'],
-                        'average_price': existing_strategy['average_price'],
-                        'number_of_investments': existing_strategy['number_of_investments'],
-                    }
-                    json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
-
-        except FileNotFoundError:
-            with open('dca_strategy.json', 'w') as f:
+            existing_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
+            if existing_strategy:
                 dca_strategy = {
                     'amount': int(amount),
                     'frequency': int(frequency),
@@ -127,11 +117,25 @@ def create_dca():
                     'investment_date': investment_date.strftime('%Y-%m-%d'),
                     'limit': int(limit),
                     'goal': int(goal),
-                    'btc_amount': 0,  # This will be updated during the DCA process
-                    'average_price': 0,  # This will be updated during the DCA process
-                    'number_of_investments': 0,  # This will be updated during the DCA process
+                    'btc_amount': existing_strategy['btc_amount'],
+                    'average_price': existing_strategy['average_price'],
+                    'number_of_investments': existing_strategy['number_of_investments'],
                 }
-                json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
+                security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
+
+        except FileNotFoundError:
+            dca_strategy = {
+                'amount': int(amount),
+                'frequency': int(frequency),
+                'start_day': int(start_day),
+                'investment_date': investment_date.strftime('%Y-%m-%d'),
+                'limit': int(limit),
+                'goal': int(goal),
+                'btc_amount': 0,  # This will be updated during the DCA process
+                'average_price': 0,  # This will be updated during the DCA process
+                'number_of_investments': 0,  # This will be updated during the DCA process
+            }
+            security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
 
         print('DCA strategy created successfully!')
         print(f'DCA strategy will start in {days_diff} days on {investment_date.strftime("%Y-%m-%d")}.')
@@ -142,8 +146,7 @@ def create_dca():
 def start_dca():
     print('Starting new DCA strategy...')
     try:
-        with open('dca_strategy.json', 'r') as f:
-            dca_strategy = json.load(f)
+        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
         print('You already have an active DCA strategy. Do you wish to replace it? (yes/no)')
         replace = input().strip().lower()
         if replace == 'yes':
@@ -156,8 +159,7 @@ def start_dca():
 def stop_dca():
     print('Stopping DCA strategy...')
     try:
-        with open('dca_strategy.json', 'r') as f:
-            dca_strategy = json.load(f)
+        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
         amount = dca_strategy['amount']
         credentials = load_credentials()
         if credentials[0] and credentials[1] and credentials[2]:
@@ -231,20 +233,19 @@ def btc():
 # CREDENTIALS ----------------------------------------------------------------------------------------------------------
 def save_credentials(public_key, private_key, client_id):
     creds = {'public_key': public_key, 'private_key': private_key, 'client_id': client_id, 'ready': True}
-    with open('credentials.json', 'w') as f:
-        json.dump(creds, f, ensure_ascii=False, indent=4)
+    security.encrypt_json_to_file(creds, 'credentials.json', password)
 
 def load_credentials():
     try:
-        with open('credentials.json', 'r') as f:
-            creds = json.load(f)
-            return creds['public_key'], creds['private_key'], creds['client_id']
+        creds = security.decrypt_json_from_file('credentials.json', password)
+        return creds['public_key'], creds['private_key'], creds['client_id']
     except FileNotFoundError:
         print('No credentials found. Please set your credentials first.')
         return None, None, None
 def credentials():
     print('Editing credentials...')
     global public_key, private_key, client_id
+    password = getpass('Please enter your password to edit credentials: ')
     public_key = input('Please enter your new public key: ')
     private_key = input('Please enter your new private key: ')
     client_id = input('Please enter your new client ID: ')
@@ -253,8 +254,7 @@ def credentials():
 
 #COMMANDS FOR BUYING ---------------------------------------------------------------------------------------------------
 def set_limit_buy():
-    with open('dca_strategy.json', 'r') as f:
-        dca_strategy = json.load(f)
+    dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
     amount = dca_strategy['amount']
     limit = dca_strategy['limit']
 
@@ -268,8 +268,7 @@ def set_limit_buy():
     else: print('Credentials are not set. Please set your API credentials first.')
 
 def cancel_limit_buy():
-    with open('dca_strategy.json', 'r') as f:
-        dca_strategy = json.load(f)
+    dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
     amount = dca_strategy['amount']
     credentials = load_credentials()
     if credentials[0] and credentials[1] and credentials[2]:
@@ -291,15 +290,12 @@ def cancel_limit_buy():
             price_bought = data['trades'][0]['price']
             print(f'Last transaction found: {last_id} - Amount bought: {amount_bought} BTC at price: {price_bought} CZK')
 
-            with open('dca_strategy.json', 'r') as f:
-                dca_strategy = json.load(f)
+            dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
             dca_strategy['btc_amount'] += amount_bought / models.get_btc_current_price()['CZK']
             dca_strategy['number_of_investments'] += 1
             dca_strategy['average_price'] = (dca_strategy['average_price'] * dca_strategy['number_of_investments'] + float(price_bought) * amount_bought) / dca_strategy['number_of_investments']
 
-            with open('dca_strategy.json', 'w') as f:
-                json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
-
+            security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
             print('No pending limit buy order found.')
 
     else: print('Credentials are not set. Please set your API credentials first.')
@@ -307,8 +303,7 @@ def cancel_limit_buy():
 
 
 def auto_buy():
-    with open('dca_strategy.json', 'r') as f:
-        dca_strategy = json.load(f)
+    dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
     amount = dca_strategy['amount']
     credentials = load_credentials()
 
@@ -317,14 +312,12 @@ def auto_buy():
         models.make_instant_order(amount, credentials[2], credentials[0], nonce, signature)
         print('Instant buy order placed successfully.')
 
-        with open('dca_strategy.json', 'r') as f:
-            dca_strategy = json.load(f)
+        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
         dca_strategy['btc_amount'] += amount / models.get_btc_current_price()['CZK']
         dca_strategy['number_of_investments'] += 1
         dca_strategy['average_price'] = (dca_strategy['average_price'] * dca_strategy['number_of_investments'] + models.get_btc_current_price()['CZK'] * amount) / dca_strategy['number_of_investments']
 
-        with open('dca_strategy.json', 'w') as f:
-            json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
+        security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
 
     else: print('Credentials are not set. Please set your API credentials first.')
 
@@ -334,37 +327,27 @@ def dca_day():
         auto_buy()
     set_limit_buy()
 
-
 #MAIN LOOP -------------------------------------------------------------------------------------------------------------
-try:
-    with open('dca_strategy.json', 'r') as f:
-        dca_strategy = json.load(f)
-    frequency = dca_strategy['frequency']
-    investment_date = datetime.strptime(dca_strategy['investment_date'], '%Y-%m-%d')
-    today = datetime.today()
-
-    if investment_date.date() == today.date():
-        dca_day()
-        if frequency != 30:
-            dca_strategy['investment_date'] = (investment_date + timedelta(days=frequency)).strftime('%Y-%m-%d')
-        else:
-            dca_strategy['investment_date'] = datetime(today.year, today.month+1, today.day).strftime('%Y-%m-%d')
-        with open('dca_strategy.json', 'w') as f:
-            json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
-
-except FileNotFoundError:
-    pass
-
-
 print('Welcome to Crypto Vault!\nInvest in Bitcoin without worrying about your emotions. Your investing will be managed via Coinmate API.')
 print('Made by viktor vyhnalek, 2025')
 if os.path.exists('credentials.json'):
-    pass
+    password = input('Please enter your password to decrypt your credentials: ')
+    data = security.decrypt_json_from_file('credentials.json', password)
+    if data:
+        print('User signed in successfully!\n')
+    else:
+        print('Decryption failed. Please check your password.')
+        sys.exit(2)
 else:
     first_login = input('\n First time here? (Yes/No): ').strip().lower()
 
     if first_login == 'yes':
         print('At first, we will need some information from you for the API connection.')
+
+        password = input('Please enter your password to encrypt your credentials (remember it!!): ')
+        security.generate_salt()
+        key = security.generate_key_from_password(password, security.get_salt())
+        security.save_key(key)
 
         public_key = input('Please enter your public key: ')
         private_key = input('Please enter your private key: ')
@@ -390,5 +373,3 @@ while True:
     elif prompt == 'btc': btc()
     elif prompt == 'credentials': credentials()
     else: print('Unknown command. Type "help" for options.')
-
-#since now it checks every time if the DCA day is today, it will not run the DCA day function if there is no active DCA strategy
