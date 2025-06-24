@@ -1,6 +1,7 @@
 import models
 import json
 import os
+from datetime import datetime, timedelta
 
 def help():
     print('Available commands:')
@@ -27,15 +28,12 @@ def view_dca():
         with open('dca_strategy.json', 'r') as f:
             dca_strategy = json.load(f)
         print('Current DCA strategy settings:')
-        print(f"Amount: {dca_strategy['amount']} CZK")
-        print(f"Frequency: {dca_strategy['frequency']} days")
-        print(f"Start Day: {dca_strategy['start_day']}")
-        print(f"Limit: {dca_strategy['limit']}%")
+        print(f"Amount: {dca_strategy['amount']} CZK, Limit: {dca_strategy['limit']}%")
+        print(f"Frequency: {dca_strategy['frequency']} days, Start Day: {dca_strategy['start_day']}\n")
 
-        print('Current DCA strategy statistics:')
+        print('Current DCA strategy statistics (update every DCA day):')
         print(f'Average price: {format_price(dca_strategy["average_price"])} CZK')
-        print(f"Fiat Amount: {models.get_btc_current_price()['CZK']*dca_strategy['btc_amount']} CZK")
-        print(f"BTC Amount: {dca_strategy['btc_amount']} BTC")
+        print(f"Fiat Amount: {models.get_btc_current_price()['CZK']*dca_strategy['btc_amount']} CZK, BTC Amount: {dca_strategy['btc_amount']} BTC")
         print(f"Goal: {dca_strategy['goal']} CZK, completion: {round((dca_strategy['btc_amount'] * models.get_btc_current_price()['CZK']) / dca_strategy['goal'] * 100, 2)}%")
 
     except FileNotFoundError:
@@ -64,15 +62,45 @@ def edit_dca():
 
 def create_dca():
     amount = input('Please enter the amount of CZK to invest each time: ')
-    frequency = input('Please enter the frequency of investments 1/7/14/30 days: ')
-    if frequency not in ['1', '7', '14']:
-        start_day = input('Please enter the start day of the month (1-28): ')
+    frequency = input('Please enter the frequency of investments (1, 7, 14, or 30 days): ').strip()
+    today = datetime.today()
+
+    if frequency == '30':
+        start_day = input('Please enter the start day of the month (1-28): ').strip()
+        if start_day.isdigit() and 1 <= int(start_day) <= 28:
+            start_day = int(start_day)
+            if start_day <= today.day:
+                if today.month == 12:
+                    year = today.year + 1
+                    month = 1
+                else:
+                    year = today.year
+                    month = today.month + 1
+            else:
+                year = today.year
+                month = today.month
+            investment_date = datetime(year, month, start_day)
+
+    elif frequency in ['1', '7', '14']:
+        start_day = input('Please enter the start day of the week (0 = Monday, 6 = Sunday): ').strip()
+        if start_day.isdigit() and 0 <= int(start_day) <= 6:
+            start_day = int(start_day)
+            weekday = today.weekday()
+            delta_days = (start_day - weekday + 7) % 7 or 7
+            investment_date = today + timedelta(days=delta_days)
+
+        else:
+            print("Invalid input. Please enter a number from 0 (Monday) to 6 (Sunday).")
+            return
     else:
-        start_day = input('Please enter the start day of the week: monday-sunday (1-7): ')
+        print("Invalid frequency. Please enter 1, 7, 14, or 30.")
+        return
+
     limit = input('Please enter your limit % change for buying (e.g. 5 for 5%): ')
     goal = input('Please enter your goal amount of CZK (fiat): ')
 
-    if amount.isdigit() and frequency.isdigit() and (frequency in ['1', '7', '14', '30']) and start_day.isdigit() and limit.isdigit() and goal.isdigit():
+    if amount.isdigit() and frequency.isdigit() and limit.isdigit() and goal.isdigit():
+        days_diff = (investment_date - today).days
         try:
             with open('dca_strategy.json', 'r') as f:
                 existing_strategy = json.load(f)
@@ -81,6 +109,7 @@ def create_dca():
                         'amount': int(amount),
                         'frequency': int(frequency),
                         'start_day': int(start_day),
+                        'investment_date': investment_date.strftime('%Y-%m-%d'),
                         'limit': int(limit),
                         'goal': int(goal),
                         'btc_amount': existing_strategy['btc_amount'],
@@ -95,6 +124,7 @@ def create_dca():
                     'amount': int(amount),
                     'frequency': int(frequency),
                     'start_day': int(start_day),
+                    'investment_date': investment_date.strftime('%Y-%m-%d'),
                     'limit': int(limit),
                     'goal': int(goal),
                     'btc_amount': 0,  # This will be updated during the DCA process
@@ -104,6 +134,8 @@ def create_dca():
                 json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
 
         print('DCA strategy created successfully!')
+        print(f'DCA strategy will start in {days_diff} days on {investment_date.strftime("%Y-%m-%d")}.')
+        
     else:
         print('Invalid input. Please enter numeric values for amount, frequency, limit, and goal.')
 
@@ -124,6 +156,18 @@ def start_dca():
 def stop_dca():
     print('Stopping DCA strategy...')
     try:
+        with open('dca_strategy.json', 'r') as f:
+            dca_strategy = json.load(f)
+        amount = dca_strategy['amount']
+        credentials = load_credentials()
+        if credentials[0] and credentials[1] and credentials[2]:
+            nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+            transaction_id = models.get_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, amount)
+
+            if transaction_id:
+                nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+                models.cancel_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, transaction_id)
+                print('Limit buy order cancelled successfully.')
         os.remove('dca_strategy.json')
         print('DCA strategy stopped successfully.')
     except FileNotFoundError:
@@ -291,10 +335,26 @@ def dca_day():
     set_limit_buy()
 
 
-
-
 #MAIN LOOP -------------------------------------------------------------------------------------------------------------
-cooldown = 0
+try:
+    with open('dca_strategy.json', 'r') as f:
+        dca_strategy = json.load(f)
+    frequency = dca_strategy['frequency']
+    investment_date = datetime.strptime(dca_strategy['investment_date'], '%Y-%m-%d')
+    today = datetime.today()
+
+    if investment_date.date() == today.date():
+        dca_day()
+        if frequency != 30:
+            dca_strategy['investment_date'] = (investment_date + timedelta(days=frequency)).strftime('%Y-%m-%d')
+        else:
+            dca_strategy['investment_date'] = datetime(today.year, today.month+1, today.day).strftime('%Y-%m-%d')
+        with open('dca_strategy.json', 'w') as f:
+            json.dump(dca_strategy, f, ensure_ascii=False, indent=4)
+
+except FileNotFoundError:
+    pass
+
 
 print('Welcome to Crypto Vault!\nInvest in Bitcoin without worrying about your emotions. Your investing will be managed via Coinmate API.')
 print('Made by viktor vyhnalek, 2025')
@@ -314,7 +374,6 @@ else:
 
 while True:
     print('------------------------------------------------------------------------------------------------------------')
-    cancel_limit_buy()
     prompt = input('Enter command (type "help" for options): ').strip().lower()
     if prompt == 'help': help()
     elif prompt == 'exit': break
@@ -331,3 +390,5 @@ while True:
     elif prompt == 'btc': btc()
     elif prompt == 'credentials': credentials()
     else: print('Unknown command. Type "help" for options.')
+
+#since now it checks every time if the DCA day is today, it will not run the DCA day function if there is no active DCA strategy
