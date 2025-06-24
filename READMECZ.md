@@ -1,9 +1,9 @@
 # BTC Vault - stackuj sats pro tvoji lepší budoucnost!
 
 ## Úvod
-**BTC Vault** je webová aplikace navržená pro strategii Dollar-Cost Averaging (DCA) a další investiční strategie, zaměřené především na Bitcoin (BTC). Inspirací pro tento projekt byla platforma **stosuj.cz** od Luboše Kováříka, kterou velmi obdivuji. Rád bych mu poděkoval za jeho práci a tímto projekt není komerční.
+**BTC Vault** je aplikace fungující v příkazovém řádku navržená pro strategii Dollar-Cost Averaging (DCA) a další investiční strategie, zaměřené především na Bitcoin (BTC). Inspirací pro tento projekt byla platforma **stosuj.cz** od Luboše Kováříka, kterou velmi obdivuji. Rád bych mu poděkoval za jeho práci a tímto projekt není komerční.
 
- Hlavním cílem tohoto projektu je předvést mé technické dovednosti v oblasti **Pythonu**, **API**, **databází**, **Git** a **frontendového vývoje**. Cílem je poskytnout praktický nástroj pro uživatele, kteří chtějí automatizovat své BTC investiční strategie a zároveň udržet kontrolu nad svými prostředky.
+ Hlavním cílem tohoto projektu je předvést mé technické dovednosti v oblasti **Pythonu**, **API**, **Git**, **práce s daty**, **automatizace**, **šifrování** nebo **modularity - organizace programu** a hlavně **vytvořit smysluplný a praktický projekt**. Cílem je poskytnout praktický nástroj pro uživatele, kteří chtějí automatizovat své BTC investiční strategie. 
 
 ## Jak to funguje
 Aplikace interaguje s **Coinmate API** pro automatické nákupy BTC. Uživatelé musí mít účet na burze Coinmate, protože platforma provádí příkazy přímo na jejich účtu. Uživatel také musí mít dostatek prostředků na burze pro správnou funkci strategie.
