@@ -17,7 +17,7 @@ def generate_key_from_password(password: str, salt: bytes) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
 def encrypt_json_to_file(data: dict, file_path: str, password: str):
-    magic_key = 'asf52ccc87sf56+'
+    magic_key = 'YOUR MAGIC KEY'
     salt = os.urandom(16)
     key = generate_key_from_password(password, salt)
     fernet = Fernet(key)
