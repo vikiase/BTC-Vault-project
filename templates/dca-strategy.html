@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCA Strategy - Crypto Vault</title>
+    <style>
+        .buttons {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        button {
+            padding: 15px 20px;
+            background: #6200ea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #4500b5;
+        }
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        .sidebar {
+            width: 240px;
+            background-color: #1e1e1e;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .sidebar h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: lightgray;
+        }
+        .sidebar a, .sidebar button {
+            color: white;
+            text-decoration: none;
+            background: none;
+            border: none;
+            text-align: center;
+            width: 100%;
+            padding: 15px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background 0.3s;
+            border-radius: 5px;
+        }
+        .sidebar a:hover, .sidebar button:hover {
+            background: #333;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 40px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        h2 {
+            font-size: 20px;
+            color: #bbb;
+            margin-bottom: 50px;
+            font-style: italic;
+        }
+        .section-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .balance {
+            font-size: 22px;
+            font-weight: bold;
+            color: lightgreen;
+            margin-bottom: 20px;
+        }
+        .data-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        .box {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            width: 280px;
+            text-align: centre;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+        .box h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: lightgray;
+            text-align: center;
+        }
+        .box p {
+            font-size: 18px;
+            margin: 8px 0;
+        }
+        .profit {
+            color: lightgreen;
+        }
+        .chart-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+        }
+        .chart-box {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            height: 200px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: gray;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Menu</h2>
+        <a href="#">DCA Strategy</a>
+        <a href="#">Grid Strategy</a>
+        <a href="#">BTC Graphs</a>
+        <a href="#">My Profile</a>
+        <button onclick="logout()">Log Out</button>
+    </div>
+
+    <div class="content">
+        <h1>Crypto Vault</h1>
+        <h2>Profit on Bitcoin without emotions.</h2>
+
+        <div class="section-title">DCA Strategy</div>
+        <div class="balance">Balance: 800 000 CZK, 0.95 BTC</div>
+
+        <div class="data-container">
+            <div class="box">
+                <h3>Parameters</h3>
+                <p>Amount: <strong>1000 CZK</strong></p>
+                <p>Frequency: <strong>7 days</strong></p>
+                <p>LIMIT: <strong>5%</strong></p>
+                <p>Goal: <strong>1 000 000 CZK</strong></p>
+            </div>
+            <div class="box">
+                <h3>Stats</h3>
+                <p>Current price: <strong>2 250 000 CZK</strong></p>
+                <p>Avg. buying price: <strong>1 125 000 CZK</strong></p>
+                <p class="profit">Profit: <strong>400 000 CZK (100%)</strong></p>
+                <p>Goal achieved: <strong>80%</strong></p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-box">AVG Price</div>
+            <div class="chart-box">BTC Price</div>
+        </div>
+    </div>
+    <div class="buttons">
+          <button>Edit Strategy</button>
+      </div>
+    <script>
+        function logout() {
+            alert("Logging out...");
+            window.location.href = "login.html";
+        }
+    </script>
+
+</body>
+</html>
