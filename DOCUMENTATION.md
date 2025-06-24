@@ -95,7 +95,7 @@ This file contains backend functions for interacting with the Coinmate API and r
 ---
 
 ## `console.py`
-This file provides the main user interface and command-line functionality.
+This file provides the main user interface and command-line functionality. It is the main script using others like models.py and security.py.
 
 ### Functions:
 1. **`help()`**  
@@ -154,18 +154,13 @@ This file automates the execution of DCA strategies on scheduled days.
 ### Functions:
 1. **`dca_day()`**  
    - Executes the DCA strategy for the current day.
+   - Uses models.py (console.py) for interacting with Coinmate API.
 
 ### Workflow:
 - Checks if the current date matches the scheduled investment date.
 - Executes the DCA strategy using `dca_day()` from `console.py`.
 - Updates the next investment date in the DCA strategy file.
 
----
-
-## `kody.txt`
-This file stores API keys and client ID. **Note:** Storing sensitive data in plaintext is not recommended for production use.
-
----
 
 ## `salt.bin` and `key.bin`
 These files are used for encryption and decryption:
@@ -179,15 +174,12 @@ These files are used for encryption and decryption:
 - `models.py`: Contains backend functions for API interaction and data retrieval.
 - `console.py`: Provides the main user interface and command-line functionality.
 - `daily.py`: Automates DCA strategy execution.
-- `kody.txt`: Stores API keys and client ID.
-- `salt.bin` and `key.bin`: Files used for encryption and decryption.
+- `dca_strategy.json` File used for storing encrypted parameters and statistics of users DCA strategy.
+- `credentials.json` File used for storing encrypted API credentials.
+- `salt.bin` and `key.bin`: Files used for encryption and decryption. (not on Github because of security reasons)
 
 ---
 
-## License
-This project is licensed under the MIT License. See the `LICENSE` file for details.
-
----
 
 ## Author
 Viktor Vyhnalek, 2025
@@ -196,3 +188,4 @@ Viktor Vyhnalek, 2025
 
 ## Disclaimer
 This program is provided as-is and is intended for educational purposes. Use it at your own risk. Always verify the security of your API keys and credentials.
+**Security hole**: your key is stored in `key.bin`. Anybody who gets access to your files can use it and read your API credentials. But nobody can withdraw from your account using these credentials.
