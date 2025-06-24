@@ -1,4 +1,4 @@
-# BTC Vault - Stack Sats for a Better Future!
+# BTC Vault - Stack Sats for your Better Future!
 
 ## Introduction
 **BTC Vault** is a command-line application designed for Dollar-Cost Averaging (DCA) and other investment strategies, primarily focused on Bitcoin (BTC). This project was inspired by the **stosuj.cz** platform created by Luboš Kovářík, whom I greatly admire. I would like to thank him for his work, and this project is non-commercial.
