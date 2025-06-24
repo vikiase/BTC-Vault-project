@@ -95,7 +95,7 @@ This file contains backend functions for interacting with the Coinmate API and r
 ---
 
 ## `console.py`
-This file provides the main user interface and command-line functionality. It is the main script using others like models.py and security.py.
+This file provides the main user interface and command-line functionality. It is the main script using others like models.py and security.py. A script that is written to be **run every day at 11 AM**, which can be scheduled either using cron on a server or macOS/Linux machine, or by setting up a task in the Windows Task Scheduler on a local PC.
 
 ### Functions:
 1. **`help()`**  
