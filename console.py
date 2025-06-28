@@ -9,18 +9,21 @@ def help():
     print('Available commands:')
     print('1. help - Show this help message')
     print('2. exit - Exit the program')
+    print('\n')
     print('3. view_dca - View DCA strategy information and statistics')
     print('4. edit_dca - Edit DCA strategy settings')
-    print('5. start_dca - Start new DCA strategy (only 1 active at a time)')
-    print('6. stop_dca - Stop the current DCA strategy')
-
-    print('7. view_grid - View grid trading strategy information and statistics')
-    print('8. edit_grid - Edit grid trading strategy settings')
-    print('9. start_grid - Start new grid trading strategy (only 1 active at a time)')
-    print('10. stop_grid - Stop the current grid trading strategy')
-
-    print('11. btc - view current BTC price and statistics')
-    print('12. credentials - edit API credentials (can not be viewed for security reasons)')
+    print('5. edit_btc_dca - Manually add transaction to DCA strategy (add or remove BTC)')
+    print('6. start_dca - Start new DCA strategy (only 1 active at a time)')
+    print('7. stop_dca - Stop the current DCA strategy')
+    print('\n')
+    print('8. view_grid - View grid trading strategy information and statistics')
+    print('9. edit_grid - Edit grid trading strategy settings')
+    print('10. sell_grid - Sell BTC from Grid strategy (if you have any)')
+    print('11. start_grid - Start new grid trading strategy (only 1 active at a time)')
+    print('12. stop_grid - Stop the current grid trading strategy')
+    print('\n')
+    print('13. btc - view current BTC price and statistics')
+    print('14. credentials - edit API credentials (can not be viewed for security reasons)')
 
 
 #DCA SETTINGS ----------------------------------------------------------------------------------------------------------
@@ -34,11 +37,11 @@ def view_dca():
             print(f"Frequency: {dca_strategy['frequency']} days, Start Day: {dca_strategy['start_day']}\n")
 
             print('Current DCA strategy statistics (update every DCA day):')
-            print(f'Average price: {format_price(dca_strategy["average_price"])} CZK')
+            print(f'Average price: {format_price(dca_strategy["average_price"])} CZK, invested {dca_strategy["number_of_investments"]} times')
             print(
-                f"Fiat Amount: {models.get_btc_current_price()['CZK'] * dca_strategy['btc_amount']} CZK, BTC Amount: {dca_strategy['btc_amount']} BTC")
+                f"Fiat Amount: {format_price(round(models.get_btc_current_price()['CZK'] * dca_strategy['btc_amount']))} CZK, BTC Amount: {dca_strategy['btc_amount']} BTC")
             print(
-                f"Goal: {dca_strategy['goal']} CZK, completion: {round((dca_strategy['btc_amount'] * models.get_btc_current_price()['CZK']) / dca_strategy['goal'] * 100, 2)}%")
+                f"Goal: {format_price(dca_strategy['goal'])} CZK, completion: {round((dca_strategy['btc_amount'] * models.get_btc_current_price()['CZK']) / dca_strategy['goal'] * 100, 2)}%")
 
     except FileNotFoundError:
         print('No DCA strategy file found. Please start a new one.')
@@ -64,6 +67,62 @@ def edit_dca():
     except FileNotFoundError:
         print('No DCA strategy file found. Please start a new one.')
 
+def edit_btc_dca():
+    try:
+        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
+        if dca_strategy:
+            print(f'Current DCA Strategy contains {dca_strategy['btc_amount']} BTC.')
+            if dca_strategy['btc_amount'] == 0:
+                print('You have no BTC in DCA strategy to remove.')
+                sell = 'add'
+            else:
+                sell = input('Do you want to add or remove BTC? (add/remove)').strip().lower()
+            if sell == 'remove':
+                print('Number of transactions stays the same.')
+                sell = input('Do you want to sell all BTC or just a part of it? (all/else)').strip().lower()
+                if sell == 'all':
+                    dca_strategy['btc_amount'] = 0
+                else:
+                    amount = input('Please enter the amount of BTC to sell: ').strip()
+                    if amount.replace('.', '', 1).isdigit() and float(amount) > 0 and float(amount) <= dca_strategy['btc_amount']:
+                        dca_strategy['btc_amount'] = round(dca_strategy['btc_amount']-float(amount), 8)
+                    else:
+                        print('Invalid amount.')
+                        return
+
+                security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
+                print('BTC removed from DCA strategy successfully.')
+            elif sell == 'add':
+                amount = input('Please enter the amount of BTC to add: ').strip()
+                if amount.replace('.', '', 1).isdigit() and float(amount) > 0:
+                    bought_for = input('Please enter the amount of CZK you bought this BTC for: ').strip()
+                    if bought_for.replace('.', '', 1).isdigit() and bought_for.isdigit() and float(bought_for) > 0:
+                        over = input(f'You bought {amount} BTC for {format_price(bought_for)} CZK. Do you want to add it to DCA strategy? (ENTER)').strip().lower()
+                        if over == '':
+                            dca_strategy['number_of_investments'] += 1
+                            bought_for_kurz = float(bought_for) / float(amount)
+                            total_btc_amount = dca_strategy['btc_amount'] + float(amount)
+                            dca_strategy['average_price'] = (dca_strategy['btc_amount'] * dca_strategy[
+                                'average_price'] + (float(amount) * bought_for_kurz)) / total_btc_amount
+                            dca_strategy['btc_amount'] = round(total_btc_amount, 8)
+                            security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
+                            print('BTC added to DCA strategy successfully.')
+                        else:
+                            print('BTC not added to DCA strategy.')
+                    else:
+                        print('Invalid amount for CZK amount.')
+                else:
+                    print('Invalid amount.')
+            else: print('DCA strategy not changed.')
+        else: print('No DCA strategy file found. Please start a new one.')
+    except Exception as e:
+        print(f'Error removing BTC from DCA strategy: {e}')
+
+
+
+
+    except FileNotFoundError:
+        print('No DCA strategy file found. Please start a new one.')
 
 def create_dca():
     amount = input('Please enter the amount of CZK to invest each time (min. 50): ')
@@ -411,6 +470,8 @@ if __name__ == "__main__":
             view_dca()
         elif prompt == 'edit_dca':
             edit_dca()
+        elif prompt == 'edit_btc_dca':
+            edit_btc_dca()
         elif prompt == 'start_dca':
             start_dca()
         elif prompt == 'stop_dca':
