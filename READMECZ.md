@@ -1,4 +1,4 @@
-# BTC Vault - stackuj sats pro tvoji lepší budoucnost!
+# BTC Vault(V1.0) - stackuj sats pro svoji lepší budoucnost!
 
 ## Úvod
 **BTC Vault** je aplikace fungující v příkazovém řádku navržená pro strategii Dollar-Cost Averaging (DCA) a další investiční strategie, zaměřené především na Bitcoin (BTC). Inspirací pro tento projekt byla platforma **stosuj.cz** od Luboše Kováříka, kterou velmi obdivuji. Rád bych mu poděkoval za jeho práci a tímto projekt není komerční.
