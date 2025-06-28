@@ -40,34 +40,33 @@ def view_dca():
             print(
                 f"Goal: {dca_strategy['goal']} CZK, completion: {round((dca_strategy['btc_amount'] * models.get_btc_current_price()['CZK']) / dca_strategy['goal'] * 100, 2)}%")
 
-        else:
-            print('No DCA strategy found. Please start a new one.')
     except FileNotFoundError:
         print('No DCA strategy file found. Please start a new one.')
 
 def edit_dca():
     try:
         dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
-        print('Current DCA strategy settings:')
-        print(f"Amount: {dca_strategy['amount']} CZK")
-        print(f"Frequency: {dca_strategy['frequency']} days")
-        print(f"Start Day: {dca_strategy['start_day']}")
-        print(f"Limit: {dca_strategy['limit']}%")
-        print(f"Goal: {dca_strategy['goal']} CZK")
-        replace = input('Do you want to edit these settings? (yes/no)').strip().lower()
+        if dca_strategy:
+            print('Current DCA strategy settings:')
+            print(f"Amount: {dca_strategy['amount']} CZK")
+            print(f"Frequency: {dca_strategy['frequency']} days")
+            print(f"Start Day: {dca_strategy['start_day']}")
+            print(f"Limit: {dca_strategy['limit']}%")
+            print(f"Goal: {dca_strategy['goal']} CZK")
+            replace = input('Do you want to edit these settings? (yes/no)').strip().lower()
 
-        if replace == 'yes':
-            print('Editing DCA strategy settings...')
-            create_dca()
-        else:
-            print('DCA strategy settings not changed.')
+            if replace == 'yes':
+                print('Editing DCA strategy settings...')
+                create_dca()
+            else:
+                print('DCA strategy settings not changed.')
 
     except FileNotFoundError:
         print('No DCA strategy file found. Please start a new one.')
 
 
 def create_dca():
-    amount = input('Please enter the amount of CZK to invest each time: ')
+    amount = input('Please enter the amount of CZK to invest each time (min. 50): ')
     frequency = input('Please enter the frequency of investments (1, 7, 14, or 30 days): ').strip()
     today = datetime.today()
 
@@ -87,7 +86,11 @@ def create_dca():
                 month = today.month
             investment_date = datetime(year, month, start_day)
 
-    elif frequency in ['1', '7', '14']:
+    elif frequency == '1':
+        investment_date = today + timedelta(days=1)
+        start_day = 0
+
+    elif frequency in ['7', '14']:
         start_day = input('Please enter the start day of the week (0 = Monday, 6 = Sunday): ').strip()
         if start_day.isdigit() and 0 <= int(start_day) <= 6:
             start_day = int(start_day)
@@ -102,10 +105,11 @@ def create_dca():
         print("Invalid frequency. Please enter 1, 7, 14, or 30.")
         return
 
-    limit = input('Please enter your limit % change for buying (e.g. 5 for 5%): ')
+    limit = input('Please enter your limit % change for buying (e.g. 5 for 5%, max 50): ')
     goal = input('Please enter your goal amount of CZK (fiat): ')
 
-    if amount.isdigit() and frequency.isdigit() and limit.isdigit() and goal.isdigit():
+    if amount.isdigit() and int(amount)>=50 and frequency.isdigit() and limit.isdigit() and int(limit)>0 and goal.isdigit() and int(goal)>0:
+        print(f'{amount.isdigit()}, {frequency.isdigit()}, {limit.isdigit()}, {goal.isdigit()}, {int(amount)>50}, {int(limit)>0}, {int(goal)>0}')
         days_diff = (investment_date - today).days
         try:
             existing_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
@@ -138,7 +142,7 @@ def create_dca():
             security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
 
         print('DCA strategy created successfully!')
-        print(f'DCA strategy will start in {days_diff} days on {investment_date.strftime("%Y-%m-%d")}.')
+        print(f'DCA strategy will start in {days_diff} day(s) on {investment_date.strftime("%Y-%m-%d")}.')
         
     else:
         print('Invalid input. Please enter numeric values for amount, frequency, limit, and goal.')
@@ -147,12 +151,13 @@ def start_dca():
     print('Starting new DCA strategy...')
     try:
         dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
-        print('You already have an active DCA strategy. Do you wish to replace it? (yes/no)')
-        replace = input().strip().lower()
-        if replace == 'yes':
-            create_dca()
-        else:
-            print('DCA strategy not started.')
+        if dca_strategy:
+            print('You already have an active DCA strategy. Do you wish to replace it? (yes/no)')
+            replace = input().strip().lower()
+            if replace == 'yes':
+                create_dca()
+            else:
+                print('DCA strategy not started.')
     except FileNotFoundError:
         create_dca()
 
@@ -160,23 +165,30 @@ def stop_dca():
     print('Stopping DCA strategy...')
     try:
         dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
-        amount = dca_strategy['amount']
-        credentials = load_credentials()
-        if credentials[0] and credentials[1] and credentials[2]:
-            nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-            transaction_id = models.get_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, amount)
 
-            if transaction_id:
+        try:
+            amount = dca_strategy['amount']
+            credentials = load_credentials()
+            if credentials[0] and credentials[1] and credentials[2]:
                 nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-                models.cancel_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, transaction_id)
-                print('Limit buy order cancelled successfully.')
+                transaction_id = models.get_pending_dca_transaction(credentials[0], signature, credentials[2], nonce,
+                                                                    amount)
+
+                if transaction_id:
+                    nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+                    models.cancel_pending_dca_transaction(credentials[0], signature, credentials[2], nonce,
+                                                          transaction_id)
+                    print('Limit buy order cancelled successfully.')
+        except TypeError:
+            print('No pending limit buy order found or corrupted data.')
+
         os.remove('dca_strategy.json')
         print('DCA strategy stopped successfully.')
     except FileNotFoundError:
         print('No active DCA strategy found.')
 
 
-#GRID SETTINGS ---------------------------------------------------------------------------------------------------------
+#GRID SETTINGS - NOT IMPLEMENTED YET------------------------------------------------------------------------------------
 def view_grid():
     print('Viewing grid trading strategy information...')
     try:
@@ -233,7 +245,16 @@ def btc():
 # CREDENTIALS ----------------------------------------------------------------------------------------------------------
 def save_credentials(public_key, private_key, client_id):
     creds = {'public_key': public_key, 'private_key': private_key, 'client_id': client_id, 'ready': True}
+
+    nonce, signature = models.get_api_credentials(public_key, private_key, client_id)
+    if models.get_balances(client_id, public_key, nonce, signature) == None:
+        print('Invalid credentials. Please check your public key, private key, and client ID.')
+        return False
     security.encrypt_json_to_file(creds, 'credentials.json', password)
+    print('Credentials saved successfully!')
+
+
+
 
 def load_credentials():
     try:
@@ -250,53 +271,69 @@ def credentials():
     private_key = input('Please enter your new private key: ')
     client_id = input('Please enter your new client ID: ')
     save_credentials(public_key, private_key, client_id)
-    print('Credentials updated successfully!')
 
 #COMMANDS FOR BUYING ---------------------------------------------------------------------------------------------------
 def set_limit_buy():
     dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
-    amount = dca_strategy['amount']
-    limit = dca_strategy['limit']
+    if dca_strategy:
+        amount = dca_strategy['amount']
+        limit = dca_strategy['limit']
 
-    limit_price = models.get_dca_limit_price(limit)
-    credentials = load_credentials()
+        limit_price = models.get_dca_limit_price(limit)
+        credentials = load_credentials()
 
-    if credentials[0] and credentials[1] and credentials[2]:
-        nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-        models.make_limit_order(limit_price, amount, credentials[2], credentials[0], nonce, signature)
-        print('Limit buy order placed successfully.')
-    else: print('Credentials are not set. Please set your API credentials first.')
+        if credentials[0] and credentials[1] and credentials[2]:
+            try:
+                nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+                models.make_limit_order(limit_price, amount, credentials[2], credentials[0], nonce, signature)
+                print('Limit buy order placed successfully.')
+            except Exception as e:
+                print(f'Error placing limit buy order: {e}')
+                return
+        else:
+            print('Credentials are not set.')
+    else:
+        print('No DCA strategy found')
+
 
 def cancel_limit_buy():
     dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
     amount = dca_strategy['amount']
     credentials = load_credentials()
     if credentials[0] and credentials[1] and credentials[2]:
-        nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-        transaction_id = models.get_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, amount)
-
-        if transaction_id:
+        try:
             nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-            models.cancel_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, transaction_id)
-            print('Limit buy order cancelled successfully.')
-            return True
-        else:
-            nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-            last_id = models.get_last_transaction(credentials[0], signature, credentials[2], nonce)
+            transaction_id = models.get_pending_dca_transaction(credentials[0], signature, credentials[2], nonce,
+                                                                amount)
 
-            nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-            data = models.check_order_status(credentials[2], credentials[0], nonce, signature, last_id)
-            amount_bought = float(data['trades'][0]['amount'])
-            price_bought = data['trades'][0]['price']
-            print(f'Last transaction found: {last_id} - Amount bought: {amount_bought} BTC at price: {price_bought} CZK')
+            if transaction_id:
+                nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+                models.cancel_pending_dca_transaction(credentials[0], signature, credentials[2], nonce, transaction_id)
+                print('Limit buy order cancelled successfully.')
+                return True
+            else:
+                nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+                last_id = models.get_last_transaction(credentials[0], signature, credentials[2], nonce)
 
-            dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
-            dca_strategy['btc_amount'] += amount_bought / models.get_btc_current_price()['CZK']
-            dca_strategy['number_of_investments'] += 1
-            dca_strategy['average_price'] = (dca_strategy['average_price'] * dca_strategy['number_of_investments'] + float(price_bought) * amount_bought) / dca_strategy['number_of_investments']
+                nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+                data = models.check_order_status(credentials[2], credentials[0], nonce, signature, last_id)
+                amount_bought = float(data['trades'][0]['amount'])
+                price_bought = data['trades'][0]['price']
+                print(
+                    f'Last transaction found: {last_id} - Amount bought: {amount_bought} BTC at price: {price_bought} CZK')
 
-            security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
-            print('No pending limit buy order found.')
+                dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
+                dca_strategy['btc_amount'] += amount_bought / models.get_btc_current_price()['CZK']
+                dca_strategy['number_of_investments'] += 1
+                dca_strategy['average_price'] = (dca_strategy['average_price'] * dca_strategy[
+                    'number_of_investments'] + float(price_bought) * amount_bought) / dca_strategy[
+                                                    'number_of_investments']
+
+                security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
+                print('No pending limit buy order found.')
+        except Exception as e:
+            print(f'Error cancelling limit buy order: {e}')
+            return False
 
     else: print('Credentials are not set. Please set your API credentials first.')
     return False
@@ -308,16 +345,22 @@ def auto_buy():
     credentials = load_credentials()
 
     if credentials[0] and credentials[1] and credentials[2]:
-        nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
-        models.make_instant_order(amount, credentials[2], credentials[0], nonce, signature)
-        print('Instant buy order placed successfully.')
+        try:
+            nonce, signature = models.get_api_credentials(credentials[0], credentials[1], credentials[2])
+            models.make_instant_order(amount, credentials[2], credentials[0], nonce, signature)
+            print('Instant buy order placed successfully.')
 
-        dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
-        dca_strategy['btc_amount'] += amount / models.get_btc_current_price()['CZK']
-        dca_strategy['number_of_investments'] += 1
-        dca_strategy['average_price'] = (dca_strategy['average_price'] * dca_strategy['number_of_investments'] + models.get_btc_current_price()['CZK'] * amount) / dca_strategy['number_of_investments']
+            dca_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
+            dca_strategy['btc_amount'] += amount / models.get_btc_current_price()['CZK']
+            dca_strategy['number_of_investments'] += 1
+            dca_strategy['average_price'] = (dca_strategy['average_price'] * dca_strategy['number_of_investments'] +
+                                             models.get_btc_current_price()['CZK'] * amount) / dca_strategy[
+                                                'number_of_investments']
 
-        security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
+            security.encrypt_json_to_file(dca_strategy, 'dca_strategy.json', password)
+        except Exception as e:
+            print(f'Error placing instant buy order: {e}')
+            return
 
     else: print('Credentials are not set. Please set your API credentials first.')
 
@@ -328,20 +371,19 @@ def dca_day():
     set_limit_buy()
 
 #MAIN LOOP -------------------------------------------------------------------------------------------------------------
-print('Welcome to Crypto Vault!\nInvest in Bitcoin without worrying about your emotions. Your investing will be managed via Coinmate API.')
-print('Made by viktor vyhnalek, 2025')
-if os.path.exists('credentials.json'):
-    password = input('Please enter your password to decrypt your credentials: ')
-    data = security.decrypt_json_from_file('credentials.json', password)
-    if data:
-        print('User signed in successfully!\n')
+if __name__ == "__main__":
+    print(
+        'Welcome to Crypto Vault!\nInvest in Bitcoin without worrying about your emotions. Your investing will be managed via Coinmate API.')
+    print('Made by viktor vyhnalek, 2025')
+    if os.path.exists('credentials.json'):
+        password = input('Please enter your password to decrypt your credentials: ')
+        data = security.decrypt_json_from_file('credentials.json', password)
+        if data:
+            print('User signed in successfully!\n')
+        else:
+            print('Decryption failed. Please check your password.')
+            sys.exit(2)
     else:
-        print('Decryption failed. Please check your password.')
-        sys.exit(2)
-else:
-    first_login = input('\n First time here? (Yes/No): ').strip().lower()
-
-    if first_login == 'yes':
         print('At first, we will need some information from you for the API connection.')
 
         password = input('Please enter your password to encrypt your credentials (remember it!!): ')
@@ -352,24 +394,42 @@ else:
         public_key = input('Please enter your public key: ')
         private_key = input('Please enter your private key: ')
         client_id = input('Please enter your client ID: ')
-        save_credentials(public_key, private_key, client_id)
-        print('Thank you! Your information has been saved and encrypted.')
+        if client_id.isdigit():
+            if save_credentials(public_key, private_key, client_id) == False:
+                sys.exit(2)
+        else:
+            print('Invalid client ID. Please enter a numeric value.')
+            sys.exit(2)
 
-while True:
-    print('------------------------------------------------------------------------------------------------------------')
-    prompt = input('Enter command (type "help" for options): ').strip().lower()
-    if prompt == 'help': help()
-    elif prompt == 'exit': break
-    elif prompt == 'view_dca': view_dca()
-    elif prompt == 'edit_dca': edit_dca()
-    elif prompt == 'start_dca': start_dca()
-    elif prompt == 'stop_dca': stop_dca()
+    while True:
+        print(
+            '------------------------------------------------------------------------------------------------------------')
+        prompt = input('Enter command (type "help" for options): ').strip().lower()
+        if prompt == 'help':
+            help()
+        elif prompt == 'exit':
+            break
+        elif prompt == 'view_dca':
+            view_dca()
+        elif prompt == 'edit_dca':
+            edit_dca()
+        elif prompt == 'start_dca':
+            start_dca()
+        elif prompt == 'stop_dca':
+            stop_dca()
 
-    elif prompt == 'view_grid': view_grid()
-    elif prompt == 'edit_grid': edit_grid()
-    elif prompt == 'start_grid': start_grid()
-    elif prompt == 'stop_grid': stop_grid()
+        elif prompt == 'view_grid':
+            view_grid()
+        elif prompt == 'edit_grid':
+            edit_grid()
+        elif prompt == 'start_grid':
+            start_grid()
+        elif prompt == 'stop_grid':
+            stop_grid()
 
-    elif prompt == 'btc': btc()
-    elif prompt == 'credentials': credentials()
-    else: print('Unknown command. Type "help" for options.')
+        elif prompt == 'btc':
+            btc()
+        elif prompt == 'credentials':
+            credentials()
+        else:
+            print('Unknown command. Type "help" for options.')
