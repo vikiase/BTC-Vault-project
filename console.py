@@ -108,8 +108,7 @@ def create_dca():
     limit = input('Please enter your limit % change for buying (e.g. 5 for 5%, max 50): ')
     goal = input('Please enter your goal amount of CZK (fiat): ')
 
-    if amount.isdigit() and int(amount)>=50 and frequency.isdigit() and limit.isdigit() and int(limit)>0 and goal.isdigit() and int(goal)>0:
-        print(f'{amount.isdigit()}, {frequency.isdigit()}, {limit.isdigit()}, {goal.isdigit()}, {int(amount)>50}, {int(limit)>0}, {int(goal)>0}')
+    if amount.isdigit() and int(amount)>=50 and frequency.isdigit() and limit.isdigit() and 50>=int(limit)>0 and goal.isdigit() and int(goal)>0:
         days_diff = (investment_date - today).days
         try:
             existing_strategy = security.decrypt_json_from_file('dca_strategy.json', password)
@@ -375,7 +374,7 @@ if __name__ == "__main__":
     print(
         'Welcome to Crypto Vault!\nInvest in Bitcoin without worrying about your emotions. Your investing will be managed via Coinmate API.')
     print('Made by viktor vyhnalek, 2025')
-    if os.path.exists('credentials.json'):
+    if os.path.exists('pass.bin'):
         password = input('Please enter your password to decrypt your credentials: ')
         data = security.decrypt_json_from_file('credentials.json', password)
         if data:
@@ -387,9 +386,8 @@ if __name__ == "__main__":
         print('At first, we will need some information from you for the API connection.')
 
         password = input('Please enter your password to encrypt your credentials (remember it!!): ')
-        security.generate_salt()
-        key = security.generate_key_from_password(password, security.get_salt())
-        security.save_key(key)
+        with open('pass.bin', 'wb') as f:
+            f.write(password.encode())
 
         public_key = input('Please enter your public key: ')
         private_key = input('Please enter your private key: ')

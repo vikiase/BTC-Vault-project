@@ -17,7 +17,7 @@ def generate_key_from_password(password: str, salt: bytes) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
 def encrypt_json_to_file(data: dict, file_path: str, password: str):
-    magic_key = 'YOUR MAGIC KEY'
+    magic_key = 'asf52ccc87sf56+'
     salt = os.urandom(16)
     key = generate_key_from_password(password, salt)
     fernet = Fernet(key)
@@ -30,7 +30,6 @@ def encrypt_json_to_file(data: dict, file_path: str, password: str):
 
     with open(file_path, 'wb') as file:
         file.write(salt + encrypted_data)
-        print(f"Data encrypted and saved to {file_path}")
 
 def decrypt_json_from_file(file_path: str, password: str):
     magic_key = 'asf52ccc87sf56+'
@@ -53,23 +52,3 @@ def decrypt_json_from_file(file_path: str, password: str):
         return data
     except InvalidToken:
         print("Decryption failed. Invalid password or corrupted data.")
-
-
-#AUTOMATIC SCRIPT FUNCTIONALITY
-def generate_salt():
-    if not os.path.exists('salt.bin'):
-        with open('salt.bin', 'wb') as f:
-            f.write(os.urandom(16))
-
-def get_salt() -> bytes:
-    with open('salt.bin', 'rb') as f:
-        return f.read()
-
-def save_key(key: bytes):
-    with open('key.bin', 'wb') as f:
-        f.write(key)
-
-def load_key() -> bytes:
-    with open('key.bin', 'rb') as f:
-        return f.read()
-
