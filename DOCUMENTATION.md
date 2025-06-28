@@ -1,185 +1,149 @@
-# Project Documentation - currently works only for ideal user, not tested yet :(
+# BTC Vault V1.0 Documentation
 
 ## Overview
-This project is a Python-based application designed to manage cryptocurrency investments using the Coinmate API. It provides functionality for Dollar-Cost Averaging (DCA) and grid trading strategies, along with tools for viewing and managing Bitcoin prices and API credentials. Below is a detailed description of each `.py` file and its functions.
+**BTC Vault** is a Python-based command-line application designed to automate Bitcoin (BTC) investment strategies, primarily focusing on Dollar-Cost Averaging (DCA). The application interacts with the Coinmate API to execute trades directly on the user's account. It includes features for managing API credentials, encrypting sensitive data, and automating investment processes.
 
 ---
 
-## `security.py`
-This file handles encryption and decryption of sensitive data, key generation, and salt management.
+## File Descriptions
 
-### Functions:
+### `security.py`
+Handles encryption and decryption of sensitive data, such as API credentials and DCA strategy settings.
+
+#### Key Functions:
 1. **`generate_key_from_password(password: str, salt: bytes) -> bytes`**  
    - Derives a cryptographic key from a password using PBKDF2 with SHA256.
-   - Parameters:
-     - `password`: The user-provided password.
-     - `salt`: A random salt for key derivation.
    - Returns: A 32-byte key encoded in Base64.
 
 2. **`encrypt_json_to_file(data: dict, file_path: str, password: str)`**  
    - Encrypts a JSON object and saves it to a file.
-   - Parameters:
-     - `data`: The dictionary to encrypt.
-     - `file_path`: Path to save the encrypted file.
-     - `password`: Password used for encryption.
+   - Adds a `magic_key` for validation during decryption.
 
 3. **`decrypt_json_from_file(file_path: str, password: str) -> dict`**  
-   - Decrypts a JSON file and returns the data as a dictionary.
-   - Parameters:
-     - `file_path`: Path to the encrypted file.
-     - `password`: Password used for decryption.
-   - Returns: Decrypted data as a dictionary.
-
-4. **`generate_salt()`**  
-   - Generates a random salt and saves it to `salt.bin`.
-
-5. **`get_salt() -> bytes`**  
-   - Reads the salt from `salt.bin`.
-
-6. **`save_key(key: bytes)`**  
-   - Saves the cryptographic key to `key.bin`.
-
-7. **`load_key() -> bytes`**  
-   - Loads the cryptographic key from `key.bin`.
+   - Decrypts a JSON file and validates its integrity using the `magic_key`.
 
 ---
 
-## `models.py`
-This file contains backend functions for interacting with the Coinmate API and retrieving cryptocurrency data.
+### `models.py`
+Contains backend functions for interacting with the Coinmate API and retrieving cryptocurrency data.
 
-### Functions:
+#### Key Functions:
 1. **`get_api_credentials(public_key, private_key, client_id) -> tuple`**  
    - Generates a nonce and HMAC signature for API authentication.
-   - Returns: A tuple `(nonce, signature)`.
 
-2. **`get_crypto_prices_usd() -> dict`**  
-   - Fetches current cryptocurrency prices in USD from CryptoCompare API.
-   - Returns: A dictionary of prices.
+2. **`get_btc_current_price() -> dict`**  
+   - Fetches the current BTC price in CZK and USD.
 
-3. **`get_all_current_prices() -> tuple`**  
-   - Fetches current cryptocurrency prices in CZK and USD.
-   - Returns: A tuple `(czk_prices, usd_prices)`.
+3. **`get_btc_change() -> float`**  
+   - Retrieves the 24-hour percentage change in BTC price.
 
-4. **`get_btc_current_price() -> dict`**  
-   - Fetches the current Bitcoin price in CZK and USD.
-   - Returns: A dictionary with prices.
-
-5. **`get_btc_change() -> float`**  
-   - Fetches the 24-hour percentage change in Bitcoin price.
-   - Returns: Percentage change as a float.
-
-6. **`get_last_transaction(public_key, signature, client_id, nonce) -> int`**  
+4. **`get_last_transaction(public_key, signature, client_id, nonce) -> int`**  
    - Retrieves the ID of the last transaction.
 
-7. **`get_pending_dca_transaction(public_key, signature, client_id, nonce, amount) -> int`**  
-   - Finds a pending DCA transaction matching the specified amount.
+5. **`make_limit_order(limit_price, amount, client_id, public_key, nonce, signature)`**  
+   - Places a limit buy order for BTC.
 
-8. **`cancel_pending_dca_transaction(public_key, signature, client_id, nonce, transaction_id) -> bool`**  
-   - Cancels a pending DCA transaction.
+6. **`make_instant_order(amount, client_id, public_key, nonce, signature)`**  
+   - Places an instant buy order for BTC.
 
-9. **`get_dca_limit_price(limit) -> int`**  
-   - Calculates the limit price for a DCA order based on the current price and limit percentage.
-
-10. **`make_limit_order(limit_price, amount, client_id, public_key, nonce, signature)`**  
-    - Places a limit buy order.
-
-11. **`make_instant_order(amount, client_id, public_key, nonce, signature)`**  
-    - Places an instant buy order.
-
-12. **`check_order_status(client_id, public_key, nonce, signature, order_id) -> dict`**  
-    - Checks the status of an order by its ID.
-
-13. **`get_balances(client_id, public_key, nonce, signature) -> tuple`**  
-    - Retrieves account balances for CZK, BTC, and ETH.
+7. **`get_balances(client_id, public_key, nonce, signature) -> tuple`**  
+   - Retrieves account balances for CZK, BTC, and ETH.
 
 ---
 
-## `console.py`
-This file provides the main user interface and command-line functionality. It is the main script using others like models.py and security.py. A script that is written to be **run every day at 11 AM**, which can be scheduled either using cron on a server or macOS/Linux machine, or by setting up a task in the Windows Task Scheduler on a local PC.
+### `console.py`
+Provides the main user interface and command-line functionality for managing DCA strategies, viewing BTC prices, and editing API credentials.
 
-### Functions:
-1. **`help()`**  
-   - Displays available commands.
+#### Key Functions:
+1. **DCA Strategy Management**:
+   - **`view_dca()`**: Displays current DCA strategy settings and statistics.
+   - **`edit_dca()`**: Edits existing DCA strategy settings.
+   - **`edit_btc_dca()`**: User can add a transaction to the strategy.
+   - **`create_dca()`**: Creates a new DCA strategy.
+   - **`start_dca()`**: Starts a new DCA strategy.
+   - **`stop_dca()`**: Stops the current DCA strategy.
 
-2. **`view_dca()`**  
-   - Displays current DCA strategy settings and statistics.
+2. **BTC Price Tracking**:
+   - **`btc()`**: Displays the current BTC price and 24-hour change.
 
-3. **`edit_dca()`**  
-   - Edits existing DCA strategy settings.
+3. **API Credentials Management**:
+   - **`save_credentials(public_key, private_key, client_id)`**: Saves encrypted API credentials.
+   - **`load_credentials()`**: Loads and decrypts API credentials.
+   - **`credentials()`**: Edits API credentials.
 
-4. **`create_dca()`**  
-   - Creates a new DCA strategy.
-
-5. **`start_dca()`**  
-   - Starts a new DCA strategy.
-
-6. **`stop_dca()`**  
-   - Stops the current DCA strategy.
-
-7. **`view_grid()`**  
-   - Displays grid trading strategy information (not implemented).
-
-8. **`edit_grid()`**  
-   - Edits grid trading strategy settings (not implemented).
-
-9. **`start_grid()`**  
-   - Starts a new grid trading strategy (not implemented).
-
-10. **`stop_grid()`**  
-    - Stops the current grid trading strategy (not implemented).
-
-11. **`btc()`**  
-    - Displays the current Bitcoin price and 24-hour change.
-
-12. **`credentials()`**  
-    - Edits API credentials.
-
-13. **`set_limit_buy()`**  
-    - Places a limit buy order for the DCA strategy.
-
-14. **`cancel_limit_buy()`**  
-    - Cancels a pending limit buy order.
-
-15. **`auto_buy()`**  
-    - Places an instant buy order for the DCA strategy.
-
-16. **`dca_day()`**  
-    - Executes the DCA strategy for the current day.
+4. **Automated Buying**:
+   - **`set_limit_buy()`**: Places a limit buy order for the DCA strategy.
+   - **`cancel_limit_buy()`**: Cancels a pending limit buy order.
+   - **`auto_buy()`**: Places an instant buy order for the DCA strategy.
 
 ---
 
-## `daily.py`
-This file automates the execution of DCA strategies on scheduled days.
+### `daily.py`
+Automates the execution of DCA strategies on scheduled days. This script should be run everyday for example by cron. 
 
-### Functions:
-1. **`dca_day()`**  
-   - Executes the DCA strategy for the current day.
-   - Uses models.py (console.py) for interacting with Coinmate API.
-
-### Workflow:
-- Checks if the current date matches the scheduled investment date.
-- Executes the DCA strategy using `dca_day()` from `console.py`.
-- Updates the next investment date in the DCA strategy file.
-
-
-## `salt.bin` and `key.bin`
-These files are used for encryption and decryption:
-- `salt.bin`: Contains the random salt used for key derivation.
-- `key.bin`: Stores the derived cryptographic key.
+#### Workflow:
+1. Decrypts the DCA strategy file.
+2. Checks if the current date matches the scheduled investment date.
+3. Executes the DCA strategy using the `dca_day()` function from `console.py`.
+4. Updates the next investment date in the DCA strategy file. 
 
 ---
 
-## File Structure
-- `security.py`: Handles encryption and decryption of sensitive data.
-- `models.py`: Contains backend functions for API interaction and data retrieval.
-- `console.py`: Provides the main user interface and command-line functionality.
-- `daily.py`: Automates DCA strategy execution.
-- `dca_strategy.json` File used for storing encrypted parameters and statistics of users DCA strategy.
-- `credentials.json` File used for storing encrypted API credentials.
-- `salt.bin` and `key.bin`: Files used for encryption and decryption. (not on Github because of security reasons)
+### `kody.txt`
+Stores API keys and client ID in plaintext. **Note:** This is not recommended for production use.
 
 ---
 
+### `pass.bin`
+File used for **automatic** encryption and decryption
+- should be stored somewhere safe, for example AWS has its tools for safe storage of keys.
+
+---
+
+### `credentials.json`
+Encrypted file storing API credentials (public key, private key, client ID).
+
+---
+
+### `dca_strategy.json`
+Encrypted file storing DCA strategy settings, including investment amount, frequency, price limit, and statistics.
+
+---
+
+
+## Usage
+
+### Commands
+- **help**: Display available commands.
+- **exit**: Exit the program.
+- **view_dca**: View DCA strategy information and statistics.
+- **edit_dca**: Edit DCA strategy settings.
+- **start_dca**: Start a new DCA strategy.
+- **stop_dca**: Stop the current DCA strategy.
+- **btc**: View current BTC price and statistics.
+- **credentials**: Edit API credentials.
+
+### First-Time Setup
+1. Run the program and follow the prompts to set up your password and API credentials.
+2. Your credentials will be encrypted and stored securely.
+
+### Automated DCA Execution
+1. Schedule the `daily.py` script to run daily using a task scheduler (e.g., cron on Linux or Task Scheduler on Windows).
+2. The script will automatically execute DCA strategies on scheduled days.
+
+---
+
+## Security
+- Sensitive data is encrypted using the `cryptography` library.
+- A password-based key is derived using PBKDF2 with a salt.
+- Ensure the `pass.bin` is stored securely.
+
+---
+
+## Limitations
+- The program assumes the presence of working Coinmate API connection.
+
+---
 
 ## Author
 Viktor Vyhnalek, 2025
@@ -188,4 +152,3 @@ Viktor Vyhnalek, 2025
 
 ## Disclaimer
 This program is provided as-is and is intended for educational purposes. Use it at your own risk. Always verify the security of your API keys and credentials.
-**Security hole**: your key is stored in `key.bin`. Anybody who gets access to your files can use it and read your API credentials. But nobody can withdraw from your account using these credentials.
