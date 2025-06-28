@@ -89,11 +89,6 @@ Automates the execution of DCA strategies on scheduled days. This script should 
 
 ---
 
-### `kody.txt`
-Stores API keys and client ID in plaintext. **Note:** This is not recommended for production use.
-
----
-
 ### `pass.bin`
 File used for **automatic** encryption and decryption
 - should be stored somewhere safe, for example AWS has its tools for safe storage of keys.
