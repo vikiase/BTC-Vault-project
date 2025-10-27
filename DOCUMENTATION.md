@@ -128,8 +128,8 @@ Schedule the `daily.py` script to run daily using systemd timers on Linux. The s
 1. **Create Service File**  
    Create `/etc/systemd/system/btc-vault.service`:
 
-[Unit]
-```Description=BTC Vault Daily Script
+```[Unit]
+Description=BTC Vault Daily Script
 After=network-online.target
 Wants=network-online.target
 [Service]
