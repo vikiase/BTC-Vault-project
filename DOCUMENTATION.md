@@ -79,19 +79,19 @@ Provides the main user interface and command-line functionality for managing DCA
 ---
 
 ### `daily.py`
-Automates the execution of DCA strategies on scheduled days. This script should be run everyday for example by cron. 
+Automates the execution of DCA strategies on scheduled days. This script should be run everyday for example by cron or systemd timer.
 
 #### Workflow:
 1. Decrypts the DCA strategy file.
 2. Checks if the current date matches the scheduled investment date.
 3. Executes the DCA strategy using the `dca_day()` function from `console.py`.
-4. Updates the next investment date in the DCA strategy file. 
+4. Updates the next investment date in the DCA strategy file.
 
 ---
 
 ### `pass.bin`
-File used for **automatic** encryption and decryption
-- should be stored somewhere safe, for example AWS has its tools for safe storage of keys.
+File used for **automatic** encryption and decryption.
+- Should be stored somewhere safe, for example AWS has its tools for safe storage of keys.
 
 ---
 
@@ -104,7 +104,6 @@ Encrypted file storing API credentials (public key, private key, client ID).
 Encrypted file storing DCA strategy settings, including investment amount, frequency, price limit, and statistics.
 
 ---
-
 
 ## Usage
 
@@ -123,8 +122,41 @@ Encrypted file storing DCA strategy settings, including investment amount, frequ
 2. Your credentials will be encrypted and stored securely.
 
 ### Automated DCA Execution
-1. Schedule the `daily.py` script to run daily using a task scheduler (e.g., cron on Linux or Task Scheduler on Windows).
-2. The script will automatically execute DCA strategies on scheduled days.
+Schedule the `daily.py` script to run daily using systemd timers on Linux. The script will automatically execute DCA strategies on scheduled days.
+
+#### Systemd Timer Setup (Ubuntu/Linux)
+1. **Create Service File**  
+   Create `/etc/systemd/system/btc-vault.service`:
+
+[Unit]
+Description=BTC Vault Daily Script
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=vv
+WorkingDirectory=/home/vv/BTC Vault
+ExecStart=/usr/bin/python3 '/home/vv/BTC Vault/daily.py'
+
+
+2. **Create Timer File**  
+Create `/etc/systemd/system/btc-vault.timer`:
+
+[Unit]
+Description=BTC Vault Daily Timer
+[Timer]
+OnCalendar=12:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+
+
+3. **Activate Timer**  
+$ sudo systemctl enable btc-vault.timer
+$ sudo systemctl start btc-vault.timer
+
+
+**Note**: The `Persistent=true` setting ensures missed executions (e.g., when the system is off) run on the next system boot.
 
 ---
 
