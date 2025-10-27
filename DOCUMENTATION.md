@@ -128,28 +128,28 @@ Schedule the `daily.py` script to run daily using systemd timers on Linux. The s
 1. **Create Service File**  
    Create `/etc/systemd/system/btc-vault.service`:
 
-[Unit]
-`Description=BTC Vault Daily Script`
-`After=network-online.target`
-`Wants=network-online.target`
-`[Service]`
-`Type=oneshot`
-`User=vv`
-`WorkingDirectory=/home/vv/BTC Vault`
-`ExecStart=/usr/bin/python3 '/home/vv/BTC Vault/daily.py'`
-
+```[Unit]
+Description=BTC Vault Daily Script
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=vv
+WorkingDirectory=/home/vv/BTC Vault
+ExecStart=/usr/bin/python3 '/home/vv/BTC Vault/daily.py'
+```
 
 2. **Create Timer File**  
 Create `/etc/systemd/system/btc-vault.timer`:
 
-`[Unit]`
-`Description=BTC Vault Daily Timer`
-`[Timer]`
-`OnCalendar=12:00`
-`Persistent=true`
-`[Install]`
-`WantedBy=timers.target`
-
+```[Unit]
+Description=BTC Vault Daily Timer
+[Timer]
+OnCalendar=12:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+```
 
 3. **Activate Timer**  
 `$ sudo systemctl enable btc-vault.timer`
