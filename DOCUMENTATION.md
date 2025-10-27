@@ -136,8 +136,8 @@ Wants=network-online.target
 Type=oneshot
 User=vv
 WorkingDirectory=/home/vv/BTC Vault
-ExecStart=/usr/bin/python3 '/home/vv/BTC Vault/daily.py'```
-
+ExecStart=/usr/bin/python3 '/home/vv/BTC Vault/daily.py'
+```
 
 2. **Create Timer File**  
 Create `/etc/systemd/system/btc-vault.timer`:
@@ -148,8 +148,8 @@ Description=BTC Vault Daily Timer
 OnCalendar=12:00
 Persistent=true
 [Install]
-WantedBy=timers.target```
-
+WantedBy=timers.target
+```
 
 3. **Activate Timer**  
 `$ sudo systemctl enable btc-vault.timer`
